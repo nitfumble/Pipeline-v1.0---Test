@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STACKS — Library Console</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ================= TOKENS ================= */
+:root{
+  --bg-void:#0A0B0D; --bg-panel:#14161A; --bg-raised:#1B1E23; --bg-hover:#21242A;
+  --line:#2A2D33; --line-soft:#1E2026;
+  --text-primary:#E8E6E1; --text-dim:#8B8D93; --text-faint:#5A5D63;
+  --accent-signal:#B8FF3D; --accent-signal-dim:rgba(184,255,61,.13);
+  --accent-warn:#FF6B4A; --accent-warn-dim:rgba(255,107,74,.13);
+  --map-bg-a:#161820; --map-bg-b:#0E0F12;
+  --font-display:'Space Grotesk',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  --radius:3px; --radius-lg:18px;
+}
+html[data-theme="light"]{
+  --bg-void:#F3F1EC; --bg-panel:#FFFFFF; --bg-raised:#F1EFE9; --bg-hover:#E9E6DD;
+  --line:#DDD9CF; --line-soft:#EAE7DF;
+  --text-primary:#1B1C1F; --text-dim:#5B5D63; --text-faint:#8C8E94;
+  --accent-signal:#5E8A1F; --accent-signal-dim:rgba(94,138,31,.12);
+  --accent-warn:#C8492F; --accent-warn-dim:rgba(200,73,47,.12);
+  --map-bg-a:#EAE8E1; --map-bg-b:#F8F7F3;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{background:var(--bg-void);color:var(--text-primary);font-family:var(--font-display);font-size:14px;-webkit-font-smoothing:antialiased;}
+::selection{background:var(--accent-signal-dim);}
+a{color:inherit;} button{font-family:inherit;cursor:pointer;} input,select{font-family:inherit;}
+::-webkit-scrollbar{width:10px;height:10px;} ::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;} ::-webkit-scrollbar-thumb:hover{background:var(--text-faint);}
+:focus-visible{outline:2px solid var(--accent-signal);outline-offset:1px;}
+@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important;} }
+.mono{font-family:var(--font-mono);} .dim{color:var(--text-dim);} .faint{color:var(--text-faint);}
+
+/* ================= LAYOUT ================= */
+.app{height:100vh;display:flex;flex-direction:column;}
+.topbar{height:54px;flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--bg-panel);}
+.brand{display:flex;align-items:center;gap:9px;margin-right:6px;}
+.brand-mark{width:20px;height:20px;flex:0 0 auto;}
+.brand-text{font-weight:700;font-size:15px;letter-spacing:.06em;}
+.brand-sub{font-size:11px;color:var(--text-faint);letter-spacing:.03em;}
+
+.status-pill{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);
+  padding:5px 10px;border:1px solid var(--line);border-radius:20px;background:var(--bg-raised);cursor:pointer;}
+.status-pill:hover{border-color:var(--text-faint);}
+.status-pill svg{width:13px;height:13px;flex:0 0 auto;opacity:.8;}
+.status-pill.warn{border-color:rgba(255,107,74,.4);color:var(--accent-warn);background:var(--accent-warn-dim);}
+.status-pill.ok{color:var(--text-dim);}
+.icon-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--line);background:var(--bg-raised);color:var(--text-dim);}
+.icon-btn:hover{color:var(--text-primary);border-color:var(--text-faint);}
+.icon-btn svg{width:15px;height:15px;}
+.topbar-spacer{flex:1;}
+.topbar-meta{font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);}
+
+.body{flex:1;display:flex;min-height:0;}
+.sidebar{width:184px;flex:0 0 auto;border-right:1px solid var(--line);background:var(--bg-panel);padding:14px 0;display:flex;flex-direction:column;gap:1px;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 18px;color:var(--text-dim);border-left:2px solid transparent;font-size:13px;font-weight:500;letter-spacing:.01em;user-select:none;}
+.nav-item svg{width:16px;height:16px;flex:0 0 auto;opacity:.8;}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-primary);}
+.nav-item.active{color:var(--text-primary);border-left-color:var(--accent-signal);background:var(--bg-hover);}
+.nav-item.active svg{opacity:1;}
+.nav-foot{margin-top:auto;padding:12px 18px;font-size:10.5px;color:var(--text-faint);font-family:var(--font-mono);line-height:1.5;}
+
+.content{flex:1;min-width:0;overflow:auto;padding:26px 28px 40px;position:relative;}
+.view{display:none;} .view.active{display:block;animation:fadein .15s ease;}
+.view.active.view-fill{display:flex;flex-direction:column;height:calc(100vh - 180px);}
+.view-fill .panel-fill{flex:1;min-height:0;overflow:auto;}
+.view-fill .view-fill-mode{display:flex;flex-direction:column;flex:1;min-height:0;}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+.view-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.view-title{font-size:19px;font-weight:600;letter-spacing:.01em;}
+.view-desc{font-size:12.5px;color:var(--text-dim);margin-top:3px;max-width:600px;line-height:1.5;}
+.panel{background:var(--bg-panel);border:1px solid var(--line);border-radius:var(--radius);}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+
+input[type=text],input[type=search],select{background:var(--bg-raised);border:1px solid var(--line);color:var(--text-primary);
+  padding:7px 10px;border-radius:var(--radius);font-size:12.5px;}
+input[type=text]:focus,input[type=search]:focus,select:focus{border-color:var(--text-faint);}
+
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--bg-raised);border:1px solid var(--line);color:var(--text-primary);
+  padding:7px 12px;border-radius:var(--radius);font-size:12px;font-weight:500;letter-spacing:.01em;transition:background .12s,border-color .12s;}
+.btn:hover{background:var(--bg-hover);border-color:var(--text-faint);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent-signal-dim);border-color:rgba(184,255,61,.35);color:var(--accent-signal);}
+.btn-primary:hover{background:rgba(184,255,61,.22);}
+.btn-sm{padding:4px 9px;font-size:11.5px;}
+.btn-warn{border-color:rgba(255,107,74,.4);color:var(--accent-warn);}
+.btn-warn:hover{background:var(--accent-warn-dim);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-faint);}
+.btn-ghost:hover{color:var(--text-primary);background:var(--bg-hover);}
+
+.badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10.5px;padding:2.5px 7px;border-radius:20px;
+  border:1px solid var(--line);color:var(--text-dim);white-space:nowrap;}
+.badge-warn{border-color:rgba(255,107,74,.4);color:var(--accent-warn);background:var(--accent-warn-dim);}
+.badge-ok{border-color:var(--line);color:var(--text-faint);}
+.badge-live{border-color:rgba(184,255,61,.35);color:var(--accent-signal);background:var(--accent-signal-dim);}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);font-weight:500;
+  padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--bg-panel);}
+.th-sort{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:3px;}
+.th-sort:hover{color:var(--text-dim);}
+.th-sort .arrow{font-size:9px;opacity:.7;}
+.th-metric-select{margin-top:5px;display:block;font-size:10px;text-transform:none;letter-spacing:0;padding:3px 5px;width:100%;}
+td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+tr.row:hover{background:var(--bg-hover);cursor:pointer;}
+.swatch{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto;}
+.cluster-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;}
+.bar-track{width:58px;height:4px;background:var(--line);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;}
+.bar-fill{height:100%;background:var(--text-dim);}
+.row-play{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:var(--bg-raised);color:var(--text-dim);
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-right:8px;}
+.row-play:hover{color:var(--accent-signal);border-color:var(--accent-signal);}
+.row-play svg{width:9px;height:9px;}
+
+/* dual range slider */
+.range-dual{position:relative;height:30px;width:200px;flex:0 0 auto;}
+.range-dual input[type=range]{position:absolute;top:11px;left:0;width:100%;margin:0;appearance:none;background:transparent;pointer-events:none;height:4px;}
+.range-dual input[type=range]::-webkit-slider-thumb{appearance:none;width:13px;height:13px;border-radius:50%;background:var(--text-primary);
+  border:2px solid var(--bg-void);cursor:pointer;pointer-events:auto;margin-top:-4.5px;}
+.range-dual input[type=range]::-webkit-slider-runnable-track{height:4px;background:transparent;}
+.range-dual input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--text-primary);
+  border:2px solid var(--bg-void);cursor:pointer;pointer-events:auto;}
+.range-dual input[type=range]::-moz-range-track{height:4px;background:transparent;}
+.range-track{position:absolute;top:13px;left:0;right:0;height:4px;background:var(--line);border-radius:2px;}
+.range-fill{position:absolute;top:13px;height:4px;background:var(--accent-signal);border-radius:2px;opacity:.55;}
+.range-readout{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);white-space:nowrap;}
+
+/* single slider (map controls) */
+.slider-field{display:flex;flex-direction:column;gap:4px;width:160px;}
+.slider-field label{font-size:10.5px;color:var(--text-faint);letter-spacing:.04em;text-transform:uppercase;display:flex;justify-content:space-between;}
+.slider-field input[type=range]{width:100%;accent-color:var(--accent-signal);}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--text-dim);margin:0 5px 5px 0;}
+.chip-toggle{background:var(--bg-raised);font-family:inherit;cursor:pointer;appearance:none;-webkit-appearance:none;}
+.chip-toggle:hover{border-color:var(--text-faint);}
+.chip-selected{border-color:var(--accent-signal);color:var(--accent-signal);background:var(--accent-signal-dim);}
+.chip-warn{border-color:rgba(255,107,74,.4);color:var(--accent-warn);}
+.chip-editable{padding-right:5px;}
+.chip-x{cursor:pointer;opacity:.6;font-size:10px;padding:0 2px;}
+.chip-x:hover{opacity:1;color:var(--accent-warn);}
+.add-tag-select{font-size:10.5px;padding:3px 5px;margin-bottom:6px;max-width:160px;}
+.tag-group-cell{min-width:170px;}
+.tag-group-label{font-size:9.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+
+/* ===== MAP VIEW ===== */
+.map-layout{display:flex;gap:16px;align-items:flex-start;}
+.map-canvas-wrap{flex:1;min-width:0;position:relative;}
+.map-controls{display:flex;align-items:center;gap:22px;margin-bottom:12px;flex-wrap:wrap;}
+.map-svg-panel{background:radial-gradient(ellipse at 50% 30%, var(--map-bg-a) 0%, var(--map-bg-b) 70%);
+  border:1px solid var(--line);border-radius:var(--radius-lg);width:100%;height:540px;position:relative;overflow:hidden;}
+svg.map-svg{width:100%;height:100%;display:block;cursor:crosshair;}
+.map-dot{transition:opacity .1s;cursor:pointer;}
+.map-dot.dim{opacity:.1;}
+.map-dot.selected{stroke:#fff;stroke-width:1.2;}
+.map-tooltip{position:absolute;pointer-events:none;background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);
+  padding:8px 10px;font-size:11.5px;line-height:1.5;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.5);max-width:220px;display:none;}
+.map-tooltip .t-title{font-weight:600;font-size:12.5px;margin-bottom:2px;}
+.legend{width:178px;flex:0 0 auto;}
+.legend-item{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:12px;cursor:pointer;color:var(--text-dim);}
+.legend-item:hover{color:var(--text-primary);}
+.legend-item input{accent-color:var(--accent-signal);}
+.legend-count{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);}
+.selection-bar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:var(--bg-raised);border:1px solid var(--line);
+  border-radius:24px;padding:8px 8px 8px 16px;display:none;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:30;}
+.selection-bar.show{display:flex;}
+.sel-circle{fill:rgba(184,255,61,.07);stroke:var(--accent-signal);stroke-width:1;stroke-dasharray:4 3;}
+.map-reset{position:absolute;top:12px;right:12px;z-index:25;}
+
+/* ===== DETAIL PANEL ===== */
+.detail-panel{position:fixed;top:54px;right:0;bottom:60px;width:380px;background:var(--bg-panel);border-left:1px solid var(--line);
+  transform:translateX(100%);transition:transform .18s ease;overflow-y:auto;z-index:60;padding:20px;}
+.detail-panel.open{transform:translateX(0);}
+.dp-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-faint);font-size:18px;line-height:1;padding:4px;}
+.dp-close:hover{color:var(--text-primary);}
+.dp-title{font-size:17px;font-weight:600;margin:4px 0 2px;padding-right:30px;}
+.dp-artist{color:var(--text-dim);font-size:13px;margin-bottom:16px;}
+.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-bottom:14px;}
+.dp-field-label{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);margin-bottom:3px;}
+.dp-field-value{font-family:var(--font-mono);font-size:13px;}
+.dp-section-label{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-faint);margin:16px 0 8px;
+  border-top:1px solid var(--line-soft);padding-top:14px;}
+.neighbor-row{display:flex;align-items:center;gap:9px;padding:7px 0;cursor:pointer;border-bottom:1px solid var(--line-soft);}
+.neighbor-row:hover .n-title{color:var(--accent-signal);}
+.neighbor-row:last-child{border-bottom:none;}
+.n-main{flex:1;min-width:0;} .n-title{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.n-meta{font-size:11px;color:var(--text-faint);} .n-sim{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);flex:0 0 auto;}
+
+/* ===== MONITOR ===== */
+.monitor-stack{display:flex;flex-direction:column;gap:16px;}
+.panel-pad{padding:18px;}
+.panel-title{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.stepper{display:flex;align-items:center;margin-bottom:18px;}
+.step{flex:1;text-align:center;position:relative;}
+.step-dot{width:9px;height:9px;border-radius:50%;background:var(--line);margin:0 auto 7px;border:2px solid var(--bg-panel);position:relative;z-index:2;}
+.step.done .step-dot{background:var(--text-faint);} .step.current .step-dot{background:var(--accent-signal);box-shadow:0 0 0 3px var(--accent-signal-dim);}
+.step-label{font-size:10px;color:var(--text-faint);letter-spacing:.04em;text-transform:uppercase;}
+.step.current .step-label{color:var(--accent-signal);} .step.done .step-label{color:var(--text-dim);}
+.step-line{position:absolute;top:4px;left:-50%;width:100%;height:1px;background:var(--line);z-index:1;}
+.step:first-child .step-line{display:none;}
+.step.done .step-line,.step.current .step-line{background:var(--text-faint);}
+.progress-outer{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:6px;}
+.progress-inner{height:100%;background:var(--accent-signal);width:0%;transition:width .3s linear;}
+.run-meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-bottom:16px;}
+.log-console{background:var(--bg-void);border:1px solid var(--line-soft);border-radius:var(--radius);height:190px;overflow-y:auto;
+  padding:10px 12px;font-family:var(--font-mono);font-size:11.5px;line-height:1.7;color:var(--text-dim);}
+.log-line{white-space:pre-wrap;word-break:break-all;} .log-line .lt{color:var(--text-faint);}
+.dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0 24px;}
+.dl-row{padding:11px 0;border-bottom:1px solid var(--line-soft);}
+.dl-name{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;}
+.dl-bottom{display:flex;align-items:center;gap:10px;}
+.dl-bottom .progress-outer{flex:1;margin:0;height:4px;} .dl-bottom .progress-inner{background:var(--text-dim);}
+.dl-size{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);flex:0 0 auto;}
+
+/* ===== PIPELINE ===== */
+.stage-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:18px;}
+.stage-grid-utility{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));}
+.stage-card{background:var(--bg-panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;position:relative;}
+.stage-card.awaiting{border-color:rgba(184,255,61,.45);}
+.stage-card .sc-order{position:absolute;top:14px;right:16px;width:20px;height:20px;border-radius:50%;background:var(--bg-raised);
+  border:1px solid var(--line);color:var(--text-faint);font-family:var(--font-mono);font-size:10.5px;display:flex;align-items:center;justify-content:center;}
+.stage-card .sc-name{font-weight:600;font-size:13px;margin-bottom:2px;padding-right:28px;}
+.stage-card .sc-script{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-bottom:8px;}
+.stage-card .sc-desc{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin-bottom:10px;}
+.stage-card .sc-meta{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-bottom:10px;}
+.sc-args{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;}
+.sc-cmd{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);background:var(--bg-void);padding:7px 9px;
+  border-radius:var(--radius);margin-bottom:10px;overflow-x:auto;white-space:nowrap;}
+.pipe-arg-select{font-size:11px;padding:4px 6px;}
+.pipe-arg-number{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);background:var(--bg-raised);
+  border:1px solid var(--line);border-radius:20px;padding:3px 10px;}
+.pipe-arg-number input{width:48px;background:transparent;border:none;color:var(--text-primary);font-family:var(--font-mono);font-size:11px;padding:0;}
+.pipe-arg-togglenum{display:inline-flex;align-items:center;gap:5px;}
+.pipe-arg-togglenum input{width:42px;padding:3px 6px;font-size:11px;}
+
+/* ===== QUEUE ===== */
+.guardrail-note{display:flex;gap:10px;align-items:flex-start;background:var(--bg-raised);border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--text-dim);line-height:1.55;}
+.guardrail-note svg{flex:0 0 auto;margin-top:1px;color:var(--text-faint);width:15px;height:15px;}
+.qtype{font-family:var(--font-mono);font-size:10.5px;padding:2.5px 7px;border-radius:3px;background:var(--bg-raised);border:1px solid var(--line);color:var(--text-dim);}
+
+/* ===== SET BUILDER ===== */
+.sb-layout{display:flex;gap:16px;align-items:stretch;flex:1;min-height:0;}
+.sb-left{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;padding:10px;}
+.sb-left-list{flex:1;min-height:0;overflow:auto;}
+.sb-right{width:340px;flex:0 0 auto;background:var(--bg-panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;overflow-y:auto;}
+.sb-track-row{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:var(--radius);cursor:grab;}
+.sb-track-row:hover{background:var(--bg-hover);}
+.sb-track-row .tt-main{flex:1;min-width:0;}
+.sb-track-row .tt-title{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-track-row .tt-meta{font-size:11px;color:var(--text-faint);}
+.sb-list{min-height:120px;}
+.sb-item{display:flex;align-items:center;gap:8px;background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);
+  padding:7px 9px;margin-bottom:6px;cursor:grab;}
+.sb-item.drag-over{border-color:var(--accent-signal);}
+.sb-item .ix{font-family:var(--font-mono);font-size:10px;color:var(--text-faint);width:16px;flex:0 0 auto;}
+.sb-item .tt-main{flex:1;min-width:0;}
+.sb-item .tt-title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-item .tt-meta{font-size:10.5px;color:var(--text-faint);}
+.sb-remove{background:none;border:none;color:var(--text-faint);font-size:13px;padding:2px 4px;}
+.sb-remove:hover{color:var(--accent-warn);}
+.sb-stats{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);
+  margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line-soft);}
+.sb-empty{font-size:12px;color:var(--text-faint);text-align:center;padding:30px 10px;border:1px dashed var(--line);border-radius:var(--radius);}
+.sb-suggest-label{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-faint);margin:14px 0 8px;}
+.sb-suggest-row{display:flex;align-items:center;gap:8px;padding:5px 0;}
+.sb-suggest-row .tt-main{flex:1;min-width:0;font-size:11.5px;}
+.sb-add-btn{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:var(--bg-raised);color:var(--text-dim);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto;}
+.sb-add-btn:hover{color:var(--accent-signal);border-color:var(--accent-signal);}
+
+/* ===== PLAYER BAR ===== */
+.playerbar{height:60px;flex:0 0 auto;border-top:1px solid var(--line);background:var(--bg-panel);display:flex;align-items:center;
+  gap:16px;padding:0 18px;}
+.pb-track{display:flex;align-items:center;gap:9px;width:200px;flex:0 0 auto;min-width:0;}
+.pb-track .tt-title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pb-track .tt-meta{font-size:10.5px;color:var(--text-faint);}
+.pb-controls{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+.pb-btn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--bg-raised);color:var(--text-primary);
+  display:flex;align-items:center;justify-content:center;}
+.pb-btn:hover{border-color:var(--text-faint);}
+.pb-btn.play{width:34px;height:34px;background:var(--accent-signal-dim);border-color:rgba(184,255,61,.35);color:var(--accent-signal);}
+.pb-btn svg{width:12px;height:12px;}
+.pb-scrub-wrap{flex:1;display:flex;align-items:center;gap:10px;min-width:0;}
+.pb-time{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);width:34px;text-align:center;flex:0 0 auto;}
+.pb-scrub{flex:1;height:4px;background:var(--line);border-radius:2px;position:relative;cursor:pointer;}
+.pb-scrub-fill{position:absolute;left:0;top:0;height:100%;background:var(--accent-signal);border-radius:2px;width:0%;}
+.pb-note{font-size:10px;color:var(--text-faint);flex:0 0 auto;max-width:170px;line-height:1.3;}
+
+@media (max-width:860px){
+  .sidebar{width:56px;} .nav-item span.label{display:none;} .nav-item{justify-content:center;padding:10px 0;} .nav-foot{display:none;}
+  .map-layout,.sb-layout{flex-direction:column;} .legend,.sb-right{width:100%;}
+  .detail-panel{width:100%;} .pb-note,.pb-track .tt-meta{display:none;}
+}
+.setup-overlay{position:fixed;inset:0;z-index:999;background:var(--bg-void);display:flex;align-items:center;justify-content:center;padding:24px;}
+.setup-card{width:100%;max-width:480px;background:var(--bg-panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:28px 32px;max-height:90vh;overflow-y:auto;}
+.setup-card h1{font-size:18px;margin:0 0 4px;}
+.setup-card .setup-sub{color:var(--text-dim);font-size:12.5px;margin:0 0 20px;}
+.setup-step-label{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-faint);margin:18px 0 8px;}
+.setup-step-label:first-of-type{margin-top:0;}
+.setup-field{margin-bottom:10px;}
+.setup-field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:4px;}
+.setup-field input[type=text],.setup-field input[type=password]{width:100%;background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);color:var(--text-primary);padding:8px 10px;font-size:13px;font-family:var(--font-display);}
+.setup-field input:focus{outline:2px solid var(--accent-signal);outline-offset:1px;}
+.setup-field .setup-hint{font-size:11px;color:var(--text-faint);margin-top:3px;}
+.setup-checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.setup-checkbox-row label{font-size:13px;color:var(--text-primary);}
+.setup-problems{background:var(--accent-warn-dim);border:1px solid rgba(255,107,74,.35);border-radius:var(--radius);padding:10px 12px;font-size:12px;color:var(--accent-warn);margin-bottom:16px;}
+.setup-actions{margin-top:18px;display:flex;justify-content:flex-end;}
+.setup-field-row{display:flex;gap:8px;align-items:flex-end;}
+.setup-field-row .setup-field{flex:1;margin-bottom:0;}
+.browse-current{font-size:12px;color:var(--text-dim);margin-bottom:10px;word-break:break-all;font-family:var(--font-mono);}
+.browse-list{max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:14px;}
+.browse-row{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--line-soft);}
+.browse-row:last-child{border-bottom:none;}
+.browse-row:hover{background:var(--bg-hover);}
+.browse-row.is-file{color:var(--text-dim);}
+.browse-row.empty{color:var(--text-faint);cursor:default;}
+.browse-row.empty:hover{background:none;}
+</style>
+</head>
+<body>
+<div id="setup-wizard" class="setup-overlay" style="display:none;">
+  <form id="setup-form" class="setup-card">
+    <h1>Set up your library</h1>
+    <p class="setup-sub">One-time setup, stored locally on this machine (config.json + secrets.json). Nothing here is sent anywhere else.</p>
+    <div id="setup-problems" class="setup-problems" style="display:none;"></div>
+
+    <div class="setup-step-label">Library</div>
+    <div class="setup-field-row">
+      <div class="setup-field">
+        <label for="sw-library-root">Library root directory</label>
+        <input type="text" id="sw-library-root" placeholder="E:/Music Library">
+      </div>
+      <button type="button" class="btn" data-browse-dir="sw-library-root">Browse…</button>
+    </div>
+
+    <div class="setup-step-label">Rekordbox</div>
+    <div class="setup-checkbox-row">
+      <input type="checkbox" id="sw-rb-enabled">
+      <label for="sw-rb-enabled">Use Rekordbox tag sync</label>
+    </div>
+    <div class="setup-field-row" id="sw-rb-master-row">
+      <div class="setup-field">
+        <label for="sw-rb-master">Rekordbox master.db path</label>
+        <input type="text" id="sw-rb-master" placeholder="C:/Users/<name>/AppData/Roaming/Pioneer/rekordbox/master.db">
+      </div>
+      <button type="button" class="btn" data-browse-file="sw-rb-master">Browse…</button>
+    </div>
+
+    <div class="setup-step-label">Credentials (optional — skip and revisit later)</div>
+    <div class="setup-field">
+      <label for="sw-sp-id">Spotify client ID</label>
+      <input type="text" id="sw-sp-id" placeholder="">
+      <div class="setup-hint">From a Spotify app at developer.spotify.com/dashboard</div>
+    </div>
+    <div class="setup-field">
+      <label for="sw-sp-secret">Spotify client secret</label>
+      <input type="password" id="sw-sp-secret" placeholder="">
+    </div>
+    <div class="setup-field">
+      <label for="sw-slskd-user">slskd username</label>
+      <input type="text" id="sw-slskd-user" placeholder="">
+    </div>
+    <div class="setup-field">
+      <label for="sw-slskd-pass">slskd password</label>
+      <input type="password" id="sw-slskd-pass" placeholder="">
+    </div>
+
+    <div class="setup-actions">
+      <button type="submit" class="btn btn-primary" id="sw-submit">Save &amp; continue</button>
+    </div>
+  </form>
+</div>
+
+<div id="browse-modal" class="setup-overlay" style="display:none; z-index:1000;">
+  <div class="setup-card" style="max-width:560px;">
+    <h1 id="browse-title">Choose a folder</h1>
+    <div class="browse-current" id="browse-current-path"></div>
+    <div class="browse-list" id="browse-list"></div>
+    <div class="setup-actions" style="justify-content:space-between;">
+      <button type="button" class="btn" id="browse-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="browse-select">Select this folder</button>
+    </div>
+  </div>
+</div>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="3" rx=".5" stroke="var(--accent-signal)" stroke-width="1.5"/><rect x="3" y="10.5" width="18" height="3" rx=".5" stroke="var(--text-primary)" stroke-width="1.5"/><rect x="3" y="17" width="18" height="3" rx=".5" stroke="var(--text-primary)" stroke-width="1.5" opacity=".5"/></svg>
+      <div class="brand-text">STACKS</div>
+      <div class="brand-sub">Library Console</div>
+    </div>
+
+    <div class="status-pill" id="pill-lastrun" title="Go to Pipeline">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span id="pill-lastrun-text">No runs yet</span>
+    </div>
+    <div class="status-pill" id="pill-sync" title="Go to Tag Authority">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0113.6-5.7M20 12a8 8 0 01-13.6 5.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M17 4v3h-3M7 20v-3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="pill-sync-text">checking…</span>
+    </div>
+
+    <div class="topbar-spacer"></div>
+    <div class="topbar-meta mono" id="track-count-meta">200 tracks · mock data</div>
+    <button class="icon-btn" id="theme-toggle" title="Toggle light/dark"></button>
+  </header>
+
+  <div class="body">
+    <nav class="sidebar" id="sidebar"></nav>
+
+    <main class="content">
+
+      <!-- MAP -->
+      <section class="view" id="view-map" data-view="map">
+        <div class="view-head">
+          <div>
+            <div class="view-title">Library Map</div>
+            <div class="view-desc">UMAP projection of track embeddings, coloured by cluster. Scroll to zoom, middle-click drag to pan, left-drag to circle-select.</div>
+          </div>
+        </div>
+        <div class="map-controls">
+          <div class="slider-field"><label><span>Neighbors</span><span class="mono" id="umap-n-label">30</span></label>
+            <input type="range" id="umap-n" min="5" max="50" step="5" value="30"></div>
+          <div class="slider-field"><label><span>Min distance</span><span class="mono" id="umap-d-label">0.0</span></label>
+            <input type="range" id="umap-d" min="0" max="0.9" step="0.1" value="0"></div>
+          <span class="faint mono" style="font-size:10.5px;max-width:260px;line-height:1.4;">two precomputed-layout knobs — same embeddings, different projection</span>
+        </div>
+        <div class="map-layout">
+          <div class="map-canvas-wrap">
+            <div class="map-svg-panel">
+              <svg class="map-svg" id="map-svg" viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet">
+                <g id="map-world">
+                  <g id="map-dots"></g>
+                  <circle id="sel-circle" class="sel-circle" cx="0" cy="0" r="0" style="display:none;"></circle>
+                </g>
+              </svg>
+              <div class="map-tooltip" id="map-tooltip"></div>
+              <button class="btn btn-sm map-reset" id="btn-reset-view">Reset view</button>
+              <div class="selection-bar" id="selection-bar">
+                <span class="mono dim" id="selection-count">0 selected</span>
+                <button class="btn btn-sm btn-primary" id="btn-export-m3u8">Export .m3u8</button>
+                <button class="btn btn-sm" id="btn-clear-selection" style="padding:4px 8px;">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </section>
+
+      <!-- TRACKS -->
+      <section class="view view-fill active" id="view-tracks" data-view="tracks">
+        <div class="view-head">
+          <div>
+            <div class="view-title">Tracks</div>
+            <div class="view-desc">Search and filter the library. Click a row to open detail; the play icon loads it into the transport.</div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="track-search" placeholder="Search title or artist…" style="width:200px;">
+          <select id="track-cluster-filter"><option value="">All clusters</option></select>
+          <select id="track-filter-Genre"><option value="">All genres</option></select>
+          <select id="track-filter-SetPosition"><option value="">All set positions</option></select>
+          <select id="track-filter-Vibe"><option value="">All vibes</option></select>
+          <select id="track-filter-Extras"><option value="">All extras</option></select>
+        </div>
+        <div class="toolbar">
+          <div class="range-dual">
+            <div class="range-track"></div><div class="range-fill" id="bpm-fill"></div>
+            <input type="range" id="bpm-min" min="100" max="190" value="100">
+            <input type="range" id="bpm-max" min="100" max="190" value="190">
+          </div>
+          <span class="range-readout mono" id="bpm-readout">100 – 190 BPM</span>
+          <span class="dim mono" id="track-result-count" style="margin-left:auto;font-size:11.5px;"></span>
+        </div>
+        <div class="panel panel-fill">
+          <table>
+            <thead><tr id="tracks-thead-row"></tr></thead>
+            <tbody id="tracks-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SET BUILDER -->
+      <section class="view view-fill" id="view-setbuilder" data-view="setbuilder">
+        <div class="view-head">
+          <div>
+            <div class="view-title">Set Builder</div>
+            <div class="view-desc">Filter the library on the left, drag tracks into the set on the right. Drag within the set to reorder. Suggestions follow the set's overall sound.</div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="sb-search" placeholder="Search title or artist…" style="width:200px;">
+          <select id="sb-cluster-filter"><option value="">All clusters</option></select>
+          <select id="sb-filter-Genre"><option value="">All genres</option></select>
+          <select id="sb-filter-SetPosition"><option value="">All set positions</option></select>
+          <select id="sb-filter-Vibe"><option value="">All vibes</option></select>
+          <select id="sb-filter-Extras"><option value="">All extras</option></select>
+        </div>
+        <div class="toolbar">
+          <div class="range-dual">
+            <div class="range-track"></div><div class="range-fill" id="sb-bpm-fill"></div>
+            <input type="range" id="sb-bpm-min" min="100" max="190" value="100">
+            <input type="range" id="sb-bpm-max" min="100" max="190" value="190">
+          </div>
+          <span class="range-readout mono" id="sb-bpm-readout">100 – 190 BPM</span>
+          <span class="dim mono" id="sb-result-count" style="margin-left:auto;font-size:11.5px;"></span>
+        </div>
+        <div class="sb-layout">
+          <div class="sb-left panel">
+            <div class="sb-left-list" id="sb-track-list"></div>
+          </div>
+          <div class="sb-right">
+            <div class="sb-stats" id="sb-stats"></div>
+            <div class="sb-list" id="sb-list"></div>
+            <div id="sb-suggestions"></div>
+            <button class="btn btn-primary" id="sb-export" style="width:100%;margin-top:14px;">Export set</button>
+            <button class="btn" id="sb-open-tagauth" style="width:100%;margin-top:8px;">Open set in Tag Authority</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLUSTERS -->
+      <section class="view" id="view-clusters" data-view="clusters">
+        <div class="view-head">
+          <div>
+            <div class="view-title">Clusters &amp; Playlists</div>
+            <div class="view-desc">Auto-generated clusters with their tag breakdown and tag-sync status. Open a cluster's tracks for closer curation.</div>
+          </div>
+          <label class="dim" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+            <input type="checkbox" id="clusters-all-tags-toggle"> show all tags &amp; counts
+          </label>
+        </div>
+        <div class="panel" style="overflow:auto;">
+          <table>
+            <thead><tr>
+              <th>Name</th><th>Tracks</th><th>Purity</th><th>BPM range</th><th>Genre tags</th><th>Set Position tags</th><th>Vibe tags</th><th>Extras tags</th>
+              <th>RB</th><th>Spotify</th><th>Tag sync</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="clusters-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAG AUTHORITY -->
+      <section class="view view-fill" id="view-tagdiff" data-view="tagdiff">
+        <div class="view-head">
+          <div>
+            <div class="view-title">Tag Authority</div>
+            <div class="view-desc">Per-track tag state across Rekordbox, Spotify and the ledger — the view that would've caught the tag-wipe drift before it shipped.</div>
+          </div>
+          <label class="dim" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+            <input type="checkbox" id="diff-mode-toggle" checked> show authority diff
+          </label>
+        </div>
+
+        <div class="toolbar">
+          <input type="search" id="tagauth-search" placeholder="Search title or artist…" style="width:220px;">
+        </div>
+        <div class="toolbar" id="tagauth-scope-bar" style="display:none;">
+          <span class="badge badge-live" id="tagauth-scope-label"></span>
+          <button class="btn btn-sm btn-ghost" id="tagauth-clear-scope">Show all tracks</button>
+        </div>
+
+        <div id="tagdiff-diff-mode" class="view-fill-mode">
+          <div class="toolbar"><label class="dim" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+            <input type="checkbox" id="diff-only-toggle" checked> drift only</label></div>
+          <div class="panel panel-fill">
+            <table>
+              <thead><tr><th>Track</th><th>Rekordbox</th><th>Spotify</th><th>Ledger (canonical)</th><th>Status</th><th>Pending pipe03 action</th><th></th></tr></thead>
+              <tbody id="tagdiff-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tagdiff-edit-mode" class="view-fill-mode" style="display:none;">
+          <div class="guardrail-note" style="margin-bottom:14px;">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 16.5h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/></svg>
+            <div>Edits here write to the ledger immediately (same write path pipe03 uses). RB and Spotify drift accordingly until synced from the Authority diff above.</div>
+          </div>
+          <div class="panel panel-fill">
+            <table>
+              <thead><tr><th>Track</th><th>Genre</th><th>Set Position</th><th>Vibe</th><th>Extras</th><th>Auto-classified (reference)</th></tr></thead>
+              <tbody id="tagedit-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PIPELINE -->
+      <section class="view" id="view-pipeline" data-view="pipeline">
+        <div class="view-head">
+          <div>
+            <div class="view-title">Run Pipeline</div>
+            <div class="view-desc">Launch orchestrator stages without leaving the browser. Output streams to the terminal below. Real execution order: pipeline_00 → pipeline_01 → manual RB import → pipeline_02 → pipeline_03.</div>
+          </div>
+          <button class="btn btn-primary" id="btn-run-all">Run full pipeline</button>
+        </div>
+        <div class="stage-grid" id="stage-grid"></div>
+        <div class="panel-title" style="margin-bottom:8px;margin-top:6px;">Utilities</div>
+        <div class="stage-grid stage-grid-utility" id="utility-grid"></div>
+        <div class="panel-title" style="margin-bottom:8px;">Terminal</div>
+        <div class="log-console" id="pipeline-console" style="height:260px;"></div>
+      </section>
+
+      <!-- MONITOR -->
+      <section class="view" id="view-monitor" data-view="monitor">
+        <div class="view-head">
+          <div>
+            <div class="view-title">Live Monitoring</div>
+            <div class="view-desc">Streamed from the orchestrator over SSE in production — simulated here. Trigger runs from Run Pipeline.</div>
+          </div>
+        </div>
+        <div class="monitor-stack">
+          <div class="panel panel-pad">
+            <div class="panel-title">Active run <span class="mono dim" id="monitor-run-label" style="font-size:11px;font-weight:400;"></span></div>
+            <div class="stepper" id="stepper"></div>
+            <div class="progress-outer"><div class="progress-inner" id="run-progress"></div></div>
+            <div class="run-meta"><span id="run-progress-pct">0%</span><span id="run-eta">—</span></div>
+            <div class="log-console" id="log-console"></div>
+          </div>
+          <div class="panel panel-pad">
+            <div class="panel-title">slskd downloads <span class="badge badge-live mono" id="dl-active-count" style="font-weight:400;">0 active</span></div>
+            <div class="dl-grid" id="downloads-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUEUE -->
+      <section class="view" id="view-queue" data-view="queue">
+        <div class="view-head"><div>
+          <div class="view-title">Queue</div>
+          <div class="view-desc">Everything actionable in this app lands here first.</div>
+        </div></div>
+        <div class="guardrail-note">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 11V7a4 4 0 018 0v4" stroke="currentColor" stroke-width="1.5"/></svg>
+          <div>The UI only ever queues work. The orchestrator pulls from this list on its own schedule and is the sole writer to the ledger and the Rekordbox database — nothing here touches either directly.</div>
+        </div>
+        <div class="panel" style="overflow:auto;">
+          <table><thead><tr><th>Type</th><th>Target</th><th>Queued</th><th>Status</th><th></th></tr></thead>
+          <tbody id="queue-tbody"></tbody></table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="playerbar">
+    <div class="pb-track" id="pb-track">
+      <span class="swatch" id="pb-swatch" style="background:var(--line);width:9px;height:9px;"></span>
+      <div class="tt-main"><div class="tt-title" id="pb-title">Nothing loaded</div><div class="tt-meta" id="pb-meta">—</div></div>
+    </div>
+    <div class="pb-controls">
+      <button class="pb-btn" id="pb-prev" title="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 6h2v12H7zM18 6L9 12l9 6z"/></svg></button>
+      <button class="pb-btn play" id="pb-play" title="Play"><svg id="pb-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l12 7-12 7z"/></svg></button>
+      <button class="pb-btn" id="pb-next" title="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 6h2v12h-2zM6 6l9 6-9 6z"/></svg></button>
+    </div>
+    <div class="pb-scrub-wrap">
+      <span class="pb-time mono" id="pb-elapsed">0:00</span>
+      <div class="pb-scrub" id="pb-scrub"><div class="pb-scrub-fill" id="pb-scrub-fill"></div></div>
+      <span class="pb-time mono" id="pb-duration">0:00</span>
+    </div>
+    <div class="pb-note">mock playback — plays a click at track BPM, no audio files in this preview</div>
+  </div>
+
+  <aside class="detail-panel" id="detail-panel">
+    <button class="dp-close" id="dp-close">✕</button>
+    <div id="detail-panel-body"></div>
+  </aside>
+  <div id="toast-container" style="position:fixed;bottom:76px;right:18px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:flex-end;"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   UTIL
+   ===================================================================== */
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const baseRng = mulberry32(20260616);
+function rand(min,max,r){ r=r||baseRng; return min + r()*(max-min); }
+function randInt(min,max,r){ return Math.floor(rand(min,max+1,r)); }
+function pick(arr,r){ r=r||baseRng; return arr[Math.floor(r()*arr.length)]; }
+function gaussLike(r){ r=r||baseRng; return (r()+r()+r()+r()-2)/2; }
+function fmtDuration(sec){ const m=Math.floor(sec/60), s=Math.round(sec%60); return m+":"+String(s).padStart(2,"0"); }
+function fmtAgo(days){ if(days<1) return "today"; if(days<2) return "yesterday"; return Math.round(days)+"d ago"; }
+function fmtAgoMs(ms){ if(ms==null) return "No runs yet"; const s=(Date.now()-ms)/1000; if(s<60) return "just now";
+  if(s<3600) return Math.round(s/60)+"m ago"; if(s<86400) return Math.round(s/3600)+"h ago"; return Math.round(s/86400)+"d ago"; }
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function setsEqual(a,b){ if(a.size!==b.size) return false; for(const x of a) if(!b.has(x)) return false; return true; }
+
+/* =====================================================================
+   TAXONOMY (mirrors the real config)
+   ===================================================================== */
+const GENRE_TAGS = ["Techno","House","Trance","Tech House","Hard Techno","Electro","Breakbeat","Hardcore","Hard Trance","Acid","Hard House","Jungle","Deep House","Drum N Bass","Progressive House","Euro House","UK Garage","Tribal","Progressive Trance","Breaks","Dubstep","Bassline","Electro House","Minimal","Tech Trance","Downtempo","Disco","Speed Garage","Garage House","Synth-Pop","Deep Techno","Donk","Experimental","Acid House","Psy-Trance","Dance-Pop","Ambient","Eurodance","Hardstyle","Happy Hardcore","Schranz","Tribal House","Nu-Disco","Grime","Rock","Funk / Soul","Pop","Hip Hop","Reggae","Others"];
+const VIBE_TAGS = ["Chill","Groovy","Driving","Peak","Dark","Euphoric","Aggressive","Hypnotic","Uplifting","Melancholic","Deep","Dramatic"];
+const COMP_TAGS = ["Comp - Acid Line","Comp - Arpeggio","Comp - Beat","Comp - Brass","Comp - Instrumental","Comp - Organic","Comp - Percussion Heavy","Comp - Piano / Keys","Comp - Strings","Comp - Sub Bass Heavy","Comp - Synth Lead","Comp - Vocal","Comp - Wobble Bass"];
+// not provided in the real config — mocked for this preview
+const SET_POSITION_TAGS = ["Opener","Warm Up","Peak Time","Peak","Cool Down","Closer"];
+const FLOOR_TAGS = ["Main Floor","Second Room","Outdoor Stage","Afterhours"];
+const FLAG_TAGS = ["Needs Review","Low Quality","Duplicate Candidate","Favorite"];
+const EXTRAS_TAGS = [...FLOOR_TAGS, "Flag - Recently Added", ...FLAG_TAGS, ...COMP_TAGS];
+const GROUPS = {Genre:GENRE_TAGS, "Set Position":SET_POSITION_TAGS, Vibe:VIBE_TAGS, Extras:EXTRAS_TAGS};
+const GROUP_KEYS = ["Genre","Set Position","Vibe","Extras"];
+
+/* =====================================================================
+   MOCK DATA
+   ===================================================================== */
+const CLUSTER_DEFS = [
+  {id:"techno",    name:"Techno",       color:"#4DD9C9", genre:"Techno",      bpm:[125,145], cx:200, cy:200, n:32},
+  {id:"techhouse", name:"Tech House",   color:"#5B9FE8", genre:"Tech House",  bpm:[122,128], cx:430, cy:140, n:22},
+  {id:"dnb",       name:"Drum & Bass",  color:"#E8B84D", genre:"Drum N Bass", bpm:[170,180], cx:700, cy:180, n:28},
+  {id:"jungle",    name:"Jungle",       color:"#D98C3D", genre:"Jungle",      bpm:[160,175], cx:830, cy:360, n:18},
+  {id:"breaks",    name:"Breakbeat",    color:"#9D7FE8", genre:"Breakbeat",   bpm:[130,145], cx:640, cy:480, n:16},
+  {id:"deephouse", name:"Deep House",   color:"#6FCB9F", genre:"Deep House",  bpm:[118,124], cx:360, cy:520, n:20},
+  {id:"electro",   name:"Electro",      color:"#E87FA0", genre:"Electro",     bpm:[125,135], cx:150, cy:400, n:14},
+  {id:"acid",      name:"Acid",         color:"#E8E04D", genre:"Acid",        bpm:[128,140], cx:500, cy:300, n:12},
+];
+const NOISE = {id:"noise", name:"Unclassified", color:"#5A5D63", genre:null, bpm:[112,178], n:38, cx:480, cy:300};
+
+const A_FRAG = ["sub","night","ghost","iron","velvet","cobalt","static","mono","drift","halo","rogue","faint","vex","pale","dust","slow","hollow","wire","glass","low","nyx","echo","fract"];
+const B_FRAG = ["theory","cartel","signal","vector","circuit","pulse","bloom","reactor","cipher","mirage","channel","engine","habit","form","order","field","code","drone","tone"];
+const TITLES = ["Undertow","Reentry","Faultline","Night Shift","Black Ice","Static Bloom","Low Orbit","Afterglow","Concrete Garden","Drift State","Vapor Trail","Sub Zero","Glass City","Night Run","Phase Two","Hollow Point","Wireframe","Dead Reckoning","Open Channel","Slow Burn","Cold Start","Last Call","Empty Frequency","Night Vision","Signal Lost","Pressure Drop","Wrong Turn","Flatline","Loose Ends","Greyscale","Tunnel Vision","Half Light","No Return","Dead Air","Quiet Hours","Long Exposure","Heavy Water","Slow Fade","True North","Outer Rim"];
+const SUFFIXES = ["", "", "", " (VIP)", " (Club Mix)", " - Edit", ""];
+const LABEL_CODES = ["VDK","MKD","NXS","KRN","TRX","SSB","HLW"];
+
+function genArtist(){ const n = baseRng()<0.45?1:2; let s=pick(A_FRAG); if(n===2) s+=pick(B_FRAG); return s; }
+function genTitle(){ return pick(TITLES)+pick(SUFFIXES); }
+function genKey(){ return randInt(1,12)+pick(["A","B"]); }
+function genScenePath(artist,title){
+  const year = pick([2024,2025,2026]); const code = pick(LABEL_CODES); const grp = pick(["SCENE/TECH","SCENE/DRUM","SCENE/HOUSE","WEB_RIPS"]);
+  return `${grp}/${year}/${artist}-${title.replace(/[^a-zA-Z0-9]+/g,"_")}-WEB-${year}-${code}/01-${artist}-${title.toLowerCase().replace(/[^a-z0-9]+/g,"_")}.mp3`;
+}
+function assignTags(clusterDef){
+  const g = [clusterDef.genre || pick(GENRE_TAGS)];
+  if(baseRng()<0.3){ const e=pick(GENRE_TAGS); if(!g.includes(e)) g.push(e); }
+  const v = [pick(VIBE_TAGS)];
+  if(baseRng()<0.45){ const e=pick(VIBE_TAGS); if(!v.includes(e)) v.push(e); }
+  const sp = baseRng()<0.7 ? [pick(SET_POSITION_TAGS)] : [];
+  const ex = [];
+  if(baseRng()<0.3) ex.push(pick(EXTRAS_TAGS));
+  if(baseRng()<0.12){ const e=pick(EXTRAS_TAGS); if(!ex.includes(e)) ex.push(e); }
+  return {Genre:g, "Set Position":sp, Vibe:v, Extras:ex};
+}
+function flattenTags(tagsObj){ return [].concat(tagsObj.Genre, tagsObj["Set Position"], tagsObj.Vibe, tagsObj.Extras); }
+function cloneTags(tagsObj){ return {Genre:[...tagsObj.Genre], "Set Position":[...tagsObj["Set Position"]], Vibe:[...tagsObj.Vibe], Extras:[...tagsObj.Extras]}; }
+
+let trackSeq = 1;
+function makeTrack(clusterDef){
+  const isNoise = clusterDef.id === "noise";
+  const bpm = Math.round(rand(clusterDef.bpm[0], clusterDef.bpm[1]));
+  const tags = assignTags(clusterDef);
+  return {
+    id: "t"+(trackSeq++), title: genTitle(), artist: genArtist(),
+    bpm, key: genKey(), cluster_id: clusterDef.id, tags, autoTags: cloneTags(tags),
+    energy: Math.round(rand(25,98)), danceability: Math.round(rand(30,97)),
+    sp_energy: rand(0,1), sp_danceability: rand(0,1), sp_playcount: randInt(0,500),
+    vocals_prob: rand(0,1), rating: Math.round(rand(0,5)*2)/2, party_score: Math.round(rand(20,95)),
+    preference_score: Math.round(rand(10,99)),
+    mood_aggressive: rand(0,1), mood_happy: rand(0,1), mood_relaxed: rand(0,1), mood_party: rand(0,1),
+    duration: randInt(195,430), addedDaysAgo: rand(0,90),
+    x:0, y:0, // assigned by layout
+  };
+}
+
+const METRIC_COLUMNS = [
+  {key:"danceability", label:"Danceability (Essentia)", fmt:"bar100", get:t=>t.danceability},
+  {key:"sp_energy", label:"Energy (Spotify)", fmt:"frac", get:t=>t.sp_energy},
+  {key:"sp_danceability", label:"Danceability (Spotify)", fmt:"frac", get:t=>t.sp_danceability},
+  {key:"vocals_prob", label:"Vocals probability", fmt:"frac", get:t=>t.vocals_prob},
+  {key:"party_score", label:"Party score", fmt:"bar100", get:t=>t.party_score},
+  {key:"preference_score", label:"Preference score", fmt:"bar100", get:t=>t.preference_score},
+  {key:"rating", label:"Rating", fmt:"stars", get:t=>t.rating},
+  {key:"mood_aggressive", label:"Mood: Aggressive", fmt:"frac", get:t=>t.mood_aggressive},
+  {key:"mood_happy", label:"Mood: Happy", fmt:"frac", get:t=>t.mood_happy},
+  {key:"mood_relaxed", label:"Mood: Relaxed", fmt:"frac", get:t=>t.mood_relaxed},
+  {key:"mood_party", label:"Mood: Party", fmt:"frac", get:t=>t.mood_party},
+  {key:"sp_playcount", label:"Spotify plays", fmt:"int", get:t=>t.sp_playcount},
+];
+function metricByKey(k){ return METRIC_COLUMNS.find(m=>m.key===k); }
+function metricCellHtml(m, t){
+  const v = m.get(t);
+  if(m.fmt==="bar100") return `<span class="bar-track"><span class="bar-fill" style="width:${v}%"></span></span><span class="mono dim" style="margin-left:6px;">${Math.round(v)}</span>`;
+  if(m.fmt==="frac") return `<span class="bar-track"><span class="bar-fill" style="width:${v*100}%"></span></span><span class="mono dim" style="margin-left:6px;">${Math.round(v*100)}%</span>`;
+  if(m.fmt==="stars") return `<span class="mono dim">${v.toFixed(1)}★</span>`;
+  if(m.fmt==="int") return `<span class="mono dim">${v}</span>`;
+  return "";
+}
+
+const STATE = {
+  clusters: [],
+  noise: {id:-1, name:"Unclassified", color:"#5A5D63"},
+  tracks: [],
+  queue: [],
+  view: "tracks",
+  map: { activeClusters:new Set(), selection:new Set(), camera:{scale:1,tx:0,ty:0}, umapN:30, umapD:0 },
+  tracksUI: { search:"", cluster:"", filters:{Genre:"","Set Position":"",Vibe:"",Extras:""}, bpmMin:100, bpmMax:190,
+              sort:null, sortDir:1, metricA:"danceability", metricB:"party_score", lastOrder:[] },
+  sbUI: { search:"", cluster:"", filters:{Genre:"","Set Position":"",Vibe:"",Extras:""}, bpmMin:100, bpmMax:190 },
+  tagAuthUI: { search:"", trackIds:null, scopeLabel:"" },
+  clusterTagSelections: {},
+  setBuilder: { items:[] },
+  clustersShowAllTags: false,
+  lastRunTimestamp: null,
+};
+
+async function loadRealData(){
+  const [tracksRes, clustersRes] = await Promise.all([
+    fetch("/api/tracks").then(r=>{ if(!r.ok) throw new Error("GET /api/tracks "+r.status); return r.json(); }),
+    fetch("/api/clusters").then(r=>{ if(!r.ok) throw new Error("GET /api/clusters "+r.status); return r.json(); }),
+  ]);
+
+  STATE.clusters = clustersRes.clusters.filter(c=>c.id!==-1);
+  STATE.noise = clustersRes.clusters.find(c=>c.id===-1) || STATE.noise;
+  STATE.tracks = tracksRes.tracks;
+  STATE.tracks.forEach(t=>{ t._rawx = t.x; t._rawy = t.y; });  // keep raw UMAP coords
+  regenerateLayout();                                          // fit them into the map viewBox
+
+  // real BPM range, not the old hardcoded 100-190 (see setupDualBpmSlider) —
+  // falls back to a wide default only if literally no track has a bpm yet.
+  const bpms = STATE.tracks.map(t=>t.bpm).filter(b=>typeof b==="number");
+  STATE.bpmBounds = bpms.length
+    ? {min: Math.floor(Math.min(...bpms)), max: Math.ceil(Math.max(...bpms))}
+    : {min: 60, max: 200};
+  STATE.tracksUI.bpmMin = STATE.bpmBounds.min; STATE.tracksUI.bpmMax = STATE.bpmBounds.max;
+  STATE.sbUI.bpmMin = STATE.bpmBounds.min; STATE.sbUI.bpmMax = STATE.bpmBounds.max;
+  STATE.map.activeClusters = new Set([...STATE.clusters.map(c=>c.id), STATE.noise.id]);
+
+  // tag-state mirrors are real-data placeholders until Tag Authority wires the
+  // actual RB/Spotify read (brief §3c/3d) — set to "no drift" rather than the
+  // mock's random staleness, since computeDrift()/totalDriftCount() (header
+  // pill) need a tagState entry per track or they throw.
+  STATE.tracks.forEach(t=>{
+    const ledger = flattenTags(t.tags);
+    tagState.set(t.id, {rb:[...ledger], spotify:[...t.tags.Genre]});
+  });
+}
+
+function allClusterDefs(){ return [...STATE.clusters, STATE.noise]; }
+function clusterById(id){ return allClusterDefs().find(c=>c.id===id); }
+function trackById(id){ return STATE.tracks.find(t=>t.id===id); }
+
+/* ---- layout: fit the REAL UMAP coords (clusters.json, served via /api/tracks)
+   into the 960x600 map viewBox. Raw coords are stashed in _rawx/_rawy on load,
+   so this is idempotent; the n_neighbors/min_dist sliders are inert for now
+   (one precomputed layout — the grid precompute is deferred, per the brief). ---- */
+function regenerateLayout(){
+  const W=960, H=600, pad=40;
+  const pts = STATE.tracks.filter(t=> typeof t._rawx==="number" && typeof t._rawy==="number"
+                                       && !(t._rawx===0 && t._rawy===0));
+  if(!pts.length) return;
+  const xs=pts.map(t=>t._rawx), ys=pts.map(t=>t._rawy);
+  const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+  const spanX=Math.max(maxX-minX,1e-6), spanY=Math.max(maxY-minY,1e-6);
+  const s=Math.min((W-2*pad)/spanX, (H-2*pad)/spanY);   // uniform scale, keep aspect
+  const offX=pad+((W-2*pad)-s*spanX)/2, offY=pad+((H-2*pad)-s*spanY)/2;
+  STATE.tracks.forEach(t=>{
+    if(typeof t._rawx!=="number" || (t._rawx===0 && t._rawy===0)){ t.x=W/2; t.y=H/2; return; }
+    t.x = offX + (t._rawx-minX)*s;
+    t.y = offY + (maxY-t._rawy)*s;   // flip Y (SVG y grows downward)
+  });
+}
+regenerateLayout();
+
+/* ---- tag-state mirrors (RB / Spotify) ---- */
+const tagState = new Map(); // trackId -> {rb:[], spotify:[]}  (frozen "last synced" snapshots)
+STATE.tracks.forEach(t=>{
+  const ledger = flattenTags(t.tags);
+  let rb = [...ledger];
+  if(baseRng()<0.28){ if(baseRng()<0.5) rb = rb.slice(0,-1); else rb = [...rb.slice(0,-1),"Stale Genre Tag"]; }
+  let spotify = [...t.tags.Genre];
+  if(baseRng()<0.22){ spotify = [pick(GENRE_TAGS)]; }
+  tagState.set(t.id, {rb, spotify});
+});
+function computeDrift(t){
+  const ts = tagState.get(t.id);
+  const ledgerSet = new Set(flattenTags(t.tags));
+  const rbDrift = !setsEqual(ledgerSet, new Set(ts.rb));
+  const spDrift = !setsEqual(new Set(t.tags.Genre), new Set(ts.spotify));
+  return {rbDrift, spDrift};
+}
+function totalDriftCount(){ return STATE.tracks.reduce((n,t)=>{ const d=computeDrift(t); return n+((d.rbDrift||d.spDrift)?1:0); },0); }
+
+/* =====================================================================
+   ICONS / NAV
+   ===================================================================== */
+const ICONS = {
+  map: '<svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="6" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="18" cy="16" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="17" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 9l6-2.2M16 8l1.4 6M9.8 16l6.6-1.2" stroke="currentColor" stroke-width="1.2" opacity=".5"/></svg>',
+  tracks: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  setbuilder: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 6h10M4 12h10M4 18h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="19" cy="15" r="3.2" stroke="currentColor" stroke-width="1.4"/><path d="M19 13.8v2.4M17.8 15h2.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
+  clusters: '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="4" y="11" width="16" height="5" rx="1" stroke="currentColor" stroke-width="1.5" opacity=".7"/><rect x="4" y="18" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5" opacity=".4"/></svg>',
+  tagdiff: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 4v11a3 3 0 003 3h5M16 7l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  pipeline: '<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="17" height="17" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 8.5l6 3.5-6 3.5v-7z" fill="currentColor"/></svg>',
+  monitor: '<svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2 6 4-14 2 8h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  queue: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="13" height="3" rx=".5" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="11" width="13" height="3" rx=".5" stroke="currentColor" stroke-width="1.4" opacity=".7"/><rect x="3" y="17" width="13" height="3" rx=".5" stroke="currentColor" stroke-width="1.4" opacity=".4"/><path d="M19 9v8m0 0l-2.5-2.5M19 17l2.5-2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const NAV = [
+  {id:"tracks", label:"Tracks"}, {id:"pipeline", label:"Run Pipeline"}, {id:"map", label:"Library Map"},
+  {id:"setbuilder", label:"Set Builder"}, {id:"clusters", label:"Clusters"}, {id:"tagdiff", label:"Tag Authority"},
+  {id:"monitor", label:"Monitor"}, {id:"queue", label:"Queue"},
+];
+function buildSidebar(){
+  const nav = document.getElementById("sidebar");
+  nav.innerHTML = NAV.map(item=>`<div class="nav-item${item.id==='tracks'?' active':''}" data-view="${item.id}">${ICONS[item.id]}<span class="label">${item.label}</span></div>`).join("")
+    + `<div class="nav-foot">mock data · v0.1 preview<br>read-only ledger</div>`;
+  nav.querySelectorAll(".nav-item").forEach(el=> el.addEventListener("click", ()=> switchView(el.dataset.view)));
+}
+function switchView(name){
+  STATE.view = name;
+  document.querySelectorAll(".nav-item").forEach(el=> el.classList.toggle("active", el.dataset.view===name));
+  document.querySelectorAll(".view").forEach(el=> el.classList.toggle("active", el.dataset.view===name));
+}
+
+/* =====================================================================
+   TOAST + QUEUE
+   ===================================================================== */
+function toast(msg){
+  const c = document.getElementById("toast-container");
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.style.cssText = "background:var(--bg-raised);border:1px solid var(--line);border-left:2px solid var(--accent-signal);border-radius:3px;padding:10px 14px;font-size:12px;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;";
+  el.textContent = msg;
+  c.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; });
+  setTimeout(()=>{ el.style.opacity=0; el.style.transform="translateY(6px)"; setTimeout(()=>el.remove(),250); }, 3400);
+}
+function typeLabel(t){
+  return {export_m3u8:"export .m3u8", sync_tags:"sync tags", run_stage:"run stage"}[t] || t;
+}
+function queueAction(type, target, opts){
+  opts = opts || {};
+  const item = { id:"q"+Date.now()+"_"+Math.random().toString(36).slice(2,6), type, target,
+    queuedAt: Date.now(), status:"queued", trackId: opts.trackId, syncTarget: opts.syncTarget, snapshot:null };
+  STATE.queue.unshift(item);
+  renderQueue();
+  toast(`Queued: ${typeLabel(type)} — ${target}`);
+  return item;
+}
+function renderQueue(){
+  document.getElementById("queue-tbody").innerHTML = STATE.queue.map(q=>{
+    const statusBadge = q.status==="done" ? '<span class="badge badge-ok">done</span>'
+      : q.status==="processing" ? '<span class="badge badge-live">processing</span>'
+      : q.status==="reverted" ? '<span class="badge">reverted</span>'
+      : '<span class="badge">queued</span>';
+    const revertBtn = q.status==="done" ? `<button class="btn btn-sm btn-ghost" data-revert="${q.id}">Revert</button>` : "";
+    return `<tr><td><span class="qtype">${typeLabel(q.type)}</span></td><td>${escapeHtml(q.target)}</td>
+      <td class="mono dim">${new Date(q.queuedAt).toLocaleTimeString([],{hour12:false})}</td>
+      <td>${statusBadge}</td><td>${revertBtn}</td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="dim" style="padding:18px 12px;">Nothing queued yet — actions from the map, clusters, or tag authority views land here.</td></tr>`;
+  document.querySelectorAll("[data-revert]").forEach(btn=>{
+    btn.addEventListener("click", ()=> revertQueueItem(btn.dataset.revert));
+  });
+}
+function revertQueueItem(id){
+  const item = STATE.queue.find(q=>q.id===id);
+  if(!item) return;
+  if(item.type==="sync_tags" && item.snapshot){
+    const ts = tagState.get(item.trackId);
+    ts.rb = item.snapshot.rb; ts.spotify = item.snapshot.spotify;
+    renderTagDiff(); renderClusters(); updateHeaderPills();
+  }
+  item.status = "reverted";
+  renderQueue();
+  toast(`Reverted: ${typeLabel(item.type)} — ${item.target}`);
+}
+function queueTick(){
+  let changed = false;
+  STATE.queue.forEach(q=>{
+    const age = Date.now() - q.queuedAt;
+    if(q.status==="queued" && age>2500){ q.status="processing"; changed=true; }
+    else if(q.status==="processing" && age>5500){
+      q.status="done"; changed=true;
+      if(q.type==="sync_tags" && q.trackId){
+        const ts = tagState.get(q.trackId);
+        q.snapshot = {rb:[...ts.rb], spotify:[...ts.spotify]};
+        const ledgerFlat = flattenTags(trackById(q.trackId).tags);
+        if(q.syncTarget!=="spotify") ts.rb = [...ledgerFlat];
+        if(q.syncTarget!=="rb") ts.spotify = [...trackById(q.trackId).tags.Genre];
+        renderTagDiff(); renderClusters(); updateHeaderPills();
+      }
+    }
+  });
+  if(changed) renderQueue();
+}
+
+/* =====================================================================
+   HEADER PILLS
+   ===================================================================== */
+function updateHeaderPills(){
+  document.getElementById("pill-lastrun-text").textContent = "Last run: " + fmtAgoMs(STATE.lastRunTimestamp);
+  const n = totalDriftCount();
+  const pill = document.getElementById("pill-sync");
+  const txt = document.getElementById("pill-sync-text");
+  if(n===0){ pill.classList.remove("warn"); txt.textContent = "Ledger / RB / Spotify in sync"; }
+  else { pill.classList.add("warn"); txt.textContent = n + " tracks pending sync"; }
+}
+
+/* =====================================================================
+   MAP — zoom / pan / circle-select / sliders
+   ===================================================================== */
+const mapSvgNS = "http://www.w3.org/2000/svg";
+let mapDragSel = null, mapPan = null;
+
+function renderLegend(){
+  const el = document.getElementById("legend");
+  el.innerHTML = allClusterDefs().map(c=>{
+    const count = STATE.tracks.filter(t=>t.cluster_id===c.id).length;
+    const checked = STATE.map.activeClusters.has(c.id) ? "checked" : "";
+    return `<label class="legend-item"><input type="checkbox" data-cluster="${c.id}" ${checked}>
+      <span class="swatch" style="background:${c.color}"></span><span>${c.name}</span>
+      <span class="legend-count mono">${count}</span></label>`;
+  }).join("");
+  el.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      const id = cb.dataset.cluster;
+      if(cb.checked) STATE.map.activeClusters.add(id); else STATE.map.activeClusters.delete(id);
+      renderMapDots();
+    });
+  });
+}
+function applyCamera(){
+  const cam = STATE.map.camera;
+  document.getElementById("map-world").setAttribute("transform", `translate(${cam.tx},${cam.ty}) scale(${cam.scale})`);
+}
+function renderMapDots(){
+  const g = document.getElementById("map-dots");
+  g.innerHTML = "";
+  STATE.tracks.forEach(t=>{
+    const c = clusterById(t.cluster_id);
+    const active = STATE.map.activeClusters.has(t.cluster_id);
+    const circle = document.createElementNS(mapSvgNS, "circle");
+    circle.setAttribute("cx", t.x); circle.setAttribute("cy", t.y);
+    circle.setAttribute("r", t.cluster_id===-1 ? 2.6 : 3.4);
+    circle.setAttribute("fill", c.color);
+    circle.setAttribute("fill-opacity", t.cluster_id===-1 ? .55 : .85);
+    circle.classList.add("map-dot");
+    if(!active) circle.classList.add("dim");
+    if(STATE.map.selection.has(t.id)) circle.classList.add("selected");
+    circle.dataset.trackId = t.id;
+    circle.addEventListener("mouseenter", e=> showTooltip(e,t,c));
+    circle.addEventListener("mousemove", positionTooltip);
+    circle.addEventListener("mouseleave", hideTooltip);
+    circle.addEventListener("mousedown", e=> e.stopPropagation());
+    circle.addEventListener("click", e=>{ e.stopPropagation(); openDetail(t.id); });
+    g.appendChild(circle);
+  });
+}
+function showTooltip(e,t,c){
+  const tip = document.getElementById("map-tooltip");
+  tip.innerHTML = `<div class="t-title">${escapeHtml(t.title)}</div><div class="dim">${escapeHtml(t.artist)}</div>
+    <div class="mono" style="margin-top:5px;color:var(--text-dim);">${t.bpm} BPM · ${t.key} · ${c.name}</div>`;
+  tip.style.display = "block"; positionTooltip(e);
+}
+function positionTooltip(e){
+  const tip = document.getElementById("map-tooltip");
+  const wrap = document.querySelector(".map-svg-panel").getBoundingClientRect();
+  tip.style.left = Math.min(wrap.width-230, e.clientX-wrap.left+14)+"px";
+  tip.style.top = Math.max(8, e.clientY-wrap.top-10)+"px";
+}
+function hideTooltip(){ document.getElementById("map-tooltip").style.display = "none"; }
+
+function displayPoint(svg, clientX, clientY){
+  const rect = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  return { x:(clientX-rect.left)/rect.width*vb.width, y:(clientY-rect.top)/rect.height*vb.height };
+}
+function displayToWorld(p){ const cam=STATE.map.camera; return {x:(p.x-cam.tx)/cam.scale, y:(p.y-cam.ty)/cam.scale}; }
+function worldToDisplay(p){ const cam=STATE.map.camera; return {x:p.x*cam.scale+cam.tx, y:p.y*cam.scale+cam.ty}; }
+
+function setupMapInteraction(){
+  const svg = document.getElementById("map-svg");
+  const selCircle = document.getElementById("sel-circle");
+
+  svg.addEventListener("contextmenu", e=> e.preventDefault());
+  svg.addEventListener("mousedown", e=>{
+    const dp = displayPoint(svg, e.clientX, e.clientY);
+    if(e.button === 1){ // middle mouse: pan
+      e.preventDefault();
+      mapPan = { startDX:dp.x, startDY:dp.y, startTx:STATE.map.camera.tx, startTy:STATE.map.camera.ty };
+      return;
+    }
+    if(e.button !== 0) return;
+    const wp = displayToWorld(dp);
+    mapDragSel = { cx:wp.x, cy:wp.y, moved:false };
+    selCircle.style.display = "block";
+    selCircle.setAttribute("cx", wp.x); selCircle.setAttribute("cy", wp.y); selCircle.setAttribute("r", 0);
+  });
+  svg.addEventListener("mousemove", e=>{
+    const dp = displayPoint(svg, e.clientX, e.clientY);
+    if(mapPan){
+      const cam = STATE.map.camera;
+      cam.tx = mapPan.startTx + (dp.x-mapPan.startDX);
+      cam.ty = mapPan.startTy + (dp.y-mapPan.startDY);
+      applyCamera();
+      return;
+    }
+    if(mapDragSel){
+      const wp = displayToWorld(dp);
+      const r = Math.hypot(wp.x-mapDragSel.cx, wp.y-mapDragSel.cy);
+      if(r>3) mapDragSel.moved = true;
+      selCircle.setAttribute("r", r);
+    }
+  });
+  window.addEventListener("mouseup", ()=>{
+    if(mapDragSel){
+      if(mapDragSel.moved){
+        const r = parseFloat(selCircle.getAttribute("r"));
+        const picked = STATE.tracks.filter(t=> STATE.map.activeClusters.has(t.cluster_id) &&
+          Math.hypot(t.x-mapDragSel.cx, t.y-mapDragSel.cy) <= r);
+        STATE.map.selection = new Set(picked.map(t=>t.id));
+        updateSelectionUI(); renderMapDots();
+      }
+      selCircle.style.display = "none"; mapDragSel = null;
+    }
+    mapPan = null;
+  });
+  svg.addEventListener("wheel", e=>{
+    e.preventDefault();
+    const dp = displayPoint(svg, e.clientX, e.clientY);
+    const before = displayToWorld(dp);
+    const cam = STATE.map.camera;
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    cam.scale = Math.max(0.4, Math.min(6, cam.scale*factor));
+    cam.tx = dp.x - before.x*cam.scale;
+    cam.ty = dp.y - before.y*cam.scale;
+    applyCamera();
+  }, {passive:false});
+
+  document.getElementById("btn-reset-view").addEventListener("click", ()=>{
+    STATE.map.camera = {scale:1,tx:0,ty:0}; applyCamera();
+  });
+  document.getElementById("umap-n").addEventListener("input", e=>{
+    STATE.map.umapN = +e.target.value; document.getElementById("umap-n-label").textContent = e.target.value;
+    regenerateLayout(); STATE.map.selection.clear(); updateSelectionUI(); renderMapDots();
+  });
+  document.getElementById("umap-d").addEventListener("input", e=>{
+    STATE.map.umapD = +e.target.value; document.getElementById("umap-d-label").textContent = (+e.target.value).toFixed(1);
+    regenerateLayout(); STATE.map.selection.clear(); updateSelectionUI(); renderMapDots();
+  });
+}
+function updateSelectionUI(){
+  const n = STATE.map.selection.size;
+  document.getElementById("selection-bar").classList.toggle("show", n>0);
+  document.getElementById("selection-count").textContent = n+" selected";
+}
+function clearSelection(){ STATE.map.selection.clear(); updateSelectionUI(); renderMapDots(); }
+function renderMap(){ renderLegend(); renderMapDots(); updateSelectionUI(); applyCamera(); }
+
+/* =====================================================================
+   DETAIL PANEL + kNN
+   ===================================================================== */
+function nearestNeighbors(track, k, excludeIds){
+  excludeIds = excludeIds || new Set();
+  return STATE.tracks.filter(t=> t.id!==track.id && !excludeIds.has(t.id))
+    .map(t=>({t, d:Math.hypot(t.x-track.x, t.y-track.y)})).sort((a,b)=>a.d-b.d).slice(0,k);
+}
+function tagChipsHtml(tagsObj){
+  return GROUP_KEYS.map(g => tagsObj[g].map(x=>`<span class="chip">${escapeHtml(x)}</span>`).join("")).join("");
+}
+function openDetail(trackId){
+  const t = trackById(trackId); if(!t) return;
+  const c = clusterById(t.cluster_id);
+  const neighbors = nearestNeighbors(t,5);
+  const maxD = Math.max(...neighbors.map(n=>n.d),1);
+  document.getElementById("detail-panel-body").innerHTML = `
+    <div class="cluster-tag dim" style="margin-top:2px;"><span class="swatch" style="background:${c.color}"></span>${c.name}</div>
+    <div class="dp-title">${escapeHtml(t.title)}</div>
+    <div class="dp-artist">${escapeHtml(t.artist)}</div>
+    <div class="dp-grid">
+      <div><div class="dp-field-label">BPM</div><div class="dp-field-value">${t.bpm}</div></div>
+      <div><div class="dp-field-label">Key</div><div class="dp-field-value">${t.key}</div></div>
+      <div><div class="dp-field-label">Length</div><div class="dp-field-value">${fmtDuration(t.duration)}</div></div>
+      <div><div class="dp-field-label">Added</div><div class="dp-field-value">${fmtAgo(t.addedDaysAgo)}</div></div>
+    </div>
+    <div>${tagChipsHtml(t.tags)}</div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-sm btn-primary" id="dp-play">▶ Load in player</button>
+      <button class="btn btn-sm" id="dp-tagauth">Open in Tag Authority</button>
+    </div>
+    <div class="dp-section-label">More like this</div>
+    <div>${neighbors.map(n=>{
+      const nc = clusterById(n.t.cluster_id); const sim = Math.round((1-n.d/maxD)*100);
+      return `<div class="neighbor-row" data-track="${n.t.id}"><span class="swatch" style="background:${nc.color}"></span>
+        <div class="n-main"><div class="n-title">${escapeHtml(n.t.title)}</div><div class="n-meta">${escapeHtml(n.t.artist)} · ${n.t.bpm} BPM</div></div>
+        <div class="n-sim">${sim}%</div></div>`;
+    }).join("")}</div>
+    <div class="faint mono" style="font-size:10.5px;margin-top:10px;">kNN over track embeddings (2D map proxy in this preview)</div>`;
+  document.getElementById("detail-panel-body").querySelectorAll(".neighbor-row").forEach(row=>{
+    row.addEventListener("click", ()=> openDetail(row.dataset.track));
+  });
+  document.getElementById("dp-play").addEventListener("click", ()=> loadTrack(t.id));
+  document.getElementById("dp-tagauth").addEventListener("click", ()=>{
+    closeDetail();
+    openTagAuthority(new Set([t.id]), "1 track: "+t.title);
+  });
+  document.getElementById("detail-panel").classList.add("open");
+}
+function closeDetail(){ document.getElementById("detail-panel").classList.remove("open"); }
+
+/* =====================================================================
+   TRACKS VIEW
+   ===================================================================== */
+const TRACK_COLUMNS = [
+  {key:"track", label:"Track", type:"string", sortVal:t=>t.title.toLowerCase()},
+  {key:"bpm", label:"BPM", type:"number", sortVal:t=>t.bpm},
+  {key:"key", label:"Key", type:"string", sortVal:t=>t.key},
+  {key:"cluster", label:"Cluster", type:"string", sortVal:t=>clusterById(t.cluster_id).name},
+  {key:"metricA", label:null, type:"number", sortVal:t=>metricByKey(STATE.tracksUI.metricA).get(t)},
+  {key:"metricB", label:null, type:"number", sortVal:t=>metricByKey(STATE.tracksUI.metricB).get(t)},
+  {key:"length", label:"Length", type:"number", sortVal:t=>t.duration},
+];
+function buildTracksHead(){
+  const row = document.getElementById("tracks-thead-row");
+  row.innerHTML = TRACK_COLUMNS.map(col=>{
+    const isMetric = col.key==="metricA" || col.key==="metricB";
+    const label = isMetric ? metricByKey(STATE.tracksUI[col.key]).label : col.label;
+    let html = `<th data-col="${col.key}"><span class="th-sort" data-col="${col.key}">${label}<span class="arrow"></span></span>`;
+    if(isMetric){
+      html += `<select class="th-metric-select" data-slot="${col.key}">` +
+        METRIC_COLUMNS.map(m=>`<option value="${m.key}" ${m.key===STATE.tracksUI[col.key]?"selected":""}>${m.label}</option>`).join("") + `</select>`;
+    }
+    return html + `</th>`;
+  }).join("");
+  row.querySelectorAll(".th-sort").forEach(span=>{
+    span.addEventListener("click", ()=>{
+      const key = span.dataset.col;
+      if(STATE.tracksUI.sort===key) STATE.tracksUI.sortDir *= -1; else { STATE.tracksUI.sort=key; STATE.tracksUI.sortDir=1; }
+      renderTracks();
+    });
+  });
+  row.querySelectorAll(".th-metric-select").forEach(sel=>{
+    sel.addEventListener("click", e=> e.stopPropagation());
+    sel.addEventListener("change", e=>{
+      STATE.tracksUI[sel.dataset.slot] = e.target.value;
+      buildTracksHead(); renderTracks();
+    });
+  });
+  // update arrows
+  row.querySelectorAll(".th-sort").forEach(span=>{
+    const arrow = span.querySelector(".arrow");
+    if(STATE.tracksUI.sort===span.dataset.col) arrow.textContent = STATE.tracksUI.sortDir===1?"▲":"▼"; else arrow.textContent="";
+  });
+}
+function matchesFilters(t, ui){
+  if(ui.search && !(t.title.toLowerCase().includes(ui.search) || t.artist.toLowerCase().includes(ui.search))) return false;
+  if(ui.cluster && t.cluster_id!==ui.cluster) return false;
+  if(typeof t.bpm==="number" && (t.bpm < ui.bpmMin || t.bpm > ui.bpmMax)) return false;
+  for(const g of GROUP_KEYS){ if(ui.filters[g] && !t.tags[g].includes(ui.filters[g])) return false; }
+  return true;
+}
+function buildFilterSelectors(prefix, ui, onChange){
+  const clusterSel = document.getElementById(prefix+"cluster-filter");
+  clusterSel.innerHTML = `<option value="">All clusters</option>` + allClusterDefs().map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  clusterSel.value = ui.cluster;
+  clusterSel.addEventListener("change", e=>{ ui.cluster = e.target.value; onChange(); });
+  GROUP_KEYS.forEach(g=>{
+    const sel = document.getElementById(prefix+"filter-"+g.replace(" ",""));
+    sel.innerHTML = `<option value="">All ${g.toLowerCase()}${g==="Extras"?"":"s"}</option>` + GROUPS[g].map(v=>`<option value="${v}">${v}</option>`).join("");
+    sel.value = ui.filters[g] || "";
+    sel.addEventListener("change", e=>{ ui.filters[g] = e.target.value; onChange(); });
+  });
+  document.getElementById(prefix+"search").addEventListener("input", e=>{ ui.search = e.target.value.toLowerCase(); onChange(); });
+}
+function setupDualBpmSlider(minId, maxId, fillId, readoutId, ui, onChange){
+  const bmin = document.getElementById(minId), bmax = document.getElementById(maxId);
+  // real library range (set in loadRealData), not a hardcoded genre-specific
+  // guess — an eclectic library (lounge/ambient through DnB) can easily fall
+  // outside 100-190, and any track outside the old hardcoded range was being
+  // silently dropped by matchesFilters, which looked like "no backend data".
+  const lo0 = STATE.bpmBounds.min, hi0 = STATE.bpmBounds.max;
+  bmin.min = lo0; bmin.max = hi0; bmax.min = lo0; bmax.max = hi0;
+  bmin.value = ui.bpmMin; bmax.value = ui.bpmMax;
+  function sync(){
+    let lo = +bmin.value, hi = +bmax.value;
+    if(lo>hi){ [lo,hi] = [hi,lo]; }
+    ui.bpmMin = lo; ui.bpmMax = hi;
+    const range = (hi0-lo0) || 1;
+    document.getElementById(fillId).style.left = ((lo-lo0)/range*100)+"%";
+    document.getElementById(fillId).style.width = (((hi-lo)/range)*100)+"%";
+    document.getElementById(readoutId).textContent = lo+" – "+hi+" BPM";
+    onChange();
+  }
+  bmin.addEventListener("input", sync); bmax.addEventListener("input", sync);
+  sync();
+}
+function buildTrackFilters(){
+  buildFilterSelectors("track-", STATE.tracksUI, renderTracks);
+  setupDualBpmSlider("bpm-min","bpm-max","bpm-fill","bpm-readout", STATE.tracksUI, renderTracks);
+}
+function renderTracks(){
+  const ui = STATE.tracksUI;
+  let rows = STATE.tracks.filter(t=> matchesFilters(t, ui));
+  if(ui.sort){
+    const col = TRACK_COLUMNS.find(c=>c.key===ui.sort);
+    rows = rows.slice().sort((a,b)=>{
+      const av=col.sortVal(a), bv=col.sortVal(b);
+      const cmp = col.type==="string" ? String(av).localeCompare(String(bv)) : (av-bv);
+      return cmp*ui.sortDir;
+    });
+  }
+  ui.lastOrder = rows.map(t=>t.id);
+  document.getElementById("track-result-count").textContent = rows.length+" of "+STATE.tracks.length;
+  const mA = metricByKey(ui.metricA), mB = metricByKey(ui.metricB);
+  document.getElementById("tracks-tbody").innerHTML = rows.map(t=>{
+    const c = clusterById(t.cluster_id);
+    return `<tr class="row" data-track="${t.id}">
+      <td><div style="display:flex;align-items:center;"><button class="row-play" data-play="${t.id}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l12 7-12 7z"/></svg></button>
+        <div><div style="font-weight:500;">${escapeHtml(t.title)}</div><div class="dim" style="font-size:11.5px;">${escapeHtml(t.artist)}</div></div></div></td>
+      <td class="mono">${t.bpm}</td><td class="mono dim">${t.key}</td>
+      <td><span class="cluster-tag"><span class="swatch" style="background:${c.color}"></span>${c.name}</span></td>
+      <td>${metricCellHtml(mA,t)}</td><td>${metricCellHtml(mB,t)}</td><td class="mono dim">${fmtDuration(t.duration)}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("tracks-tbody").querySelectorAll("tr").forEach(tr=>{
+    tr.addEventListener("click", e=>{ if(e.target.closest("[data-play]")) return; openDetail(tr.dataset.track); });
+  });
+  document.getElementById("tracks-tbody").querySelectorAll("[data-play]").forEach(btn=>{
+    btn.addEventListener("click", e=>{ e.stopPropagation(); loadTrack(btn.dataset.play); });
+  });
+}
+
+/* =====================================================================
+   CLUSTERS VIEW
+   ===================================================================== */
+const purityCache = new Map();
+function purityFor(id){ if(!purityCache.has(id)) purityCache.set(id, id==="noise"?null:Math.round(rand(55,92))); return purityCache.get(id); }
+const rbLinked = new Map(), spLinked = new Map();
+allClusterDefs().forEach(c=>{ rbLinked.set(c.id, c.id!=="noise" && baseRng()<0.6); spLinked.set(c.id, c.id!=="noise" && baseRng()<0.4); });
+
+function tagCounts(clusterId, group, limit){
+  const counts = {};
+  STATE.tracks.filter(t=>t.cluster_id===clusterId).forEach(t=> t.tags[group].forEach(v=> counts[v]=(counts[v]||0)+1));
+  const arr = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  return limit ? arr.slice(0,limit) : arr;
+}
+function getClusterSelection(clusterId){
+  if(!STATE.clusterTagSelections[clusterId]) STATE.clusterTagSelections[clusterId] = {Genre:null,"Set Position":null,Vibe:null,Extras:null};
+  return STATE.clusterTagSelections[clusterId];
+}
+function tagCountsHtml(clusterId, group){
+  const limit = STATE.clustersShowAllTags ? null : 3;
+  const arr = tagCounts(clusterId, group, limit);
+  if(!arr.length) return '<span class="faint">—</span>';
+  const sel = getClusterSelection(clusterId);
+  return arr.map(([v,n])=>{
+    const isSel = sel[group]===v;
+    return `<button type="button" class="chip chip-toggle${isSel?' chip-selected':''}" data-cluster="${clusterId}" data-group="${escapeHtml(group)}" data-value="${escapeHtml(v)}">${escapeHtml(v)} <span class="faint">${n}</span></button>`;
+  }).join("");
+}
+function renderClusters(){
+  document.getElementById("clusters-tbody").innerHTML = allClusterDefs().map(c=>{
+    const members = STATE.tracks.filter(t=>t.cluster_id===c.id);
+    const bpms = members.map(t=>t.bpm);
+    const bpmRange = bpms.length ? Math.min(...bpms)+"–"+Math.max(...bpms) : "—";
+    const purity = purityFor(c.id);
+    const driftN = members.filter(t=>{ const d=computeDrift(t); return d.rbDrift||d.spDrift; }).length;
+    const syncBadge = driftN===0 ? '<span class="badge badge-ok">synced</span>' : `<span class="badge badge-warn">${driftN} drift</span>`;
+    return `<tr><td><span class="cluster-tag"><span class="swatch" style="background:${c.color}"></span>${escapeHtml(c.name)}</span></td>
+      <td class="mono">${members.length}</td><td class="mono dim">${purity===null?"—":purity+"%"}</td><td class="mono dim">${bpmRange}</td>
+      <td>${tagCountsHtml(c.id,"Genre")}</td>
+      <td>${tagCountsHtml(c.id,"Set Position")}</td>
+      <td>${tagCountsHtml(c.id,"Vibe")}</td>
+      <td>${tagCountsHtml(c.id,"Extras")}</td>
+      <td>${rbLinked.get(c.id)?'<span class="badge badge-ok">linked</span>':'<span class="faint">—</span>'}</td>
+      <td>${spLinked.get(c.id)?'<span class="badge badge-ok">linked</span>':'<span class="faint">—</span>'}</td>
+      <td>${syncBadge}</td>
+      <td><button class="btn btn-sm" data-export="${c.id}">Export</button>
+          <button class="btn btn-sm" data-open="${c.id}">Open in Tracks</button></td></tr>`;
+  }).join("");
+  document.querySelectorAll("[data-export]").forEach(btn=> btn.addEventListener("click", ()=> queueAction("export_m3u8", clusterById(btn.dataset.export).name)));
+  document.querySelectorAll(".chip-toggle").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const sel = getClusterSelection(btn.dataset.cluster);
+      const g = btn.dataset.group;
+      sel[g] = sel[g]===btn.dataset.value ? null : btn.dataset.value;
+      renderClusters();
+    });
+  });
+  document.querySelectorAll("[data-open]").forEach(btn=> btn.addEventListener("click", ()=>{
+    const clusterId = btn.dataset.open;
+    const sel = getClusterSelection(clusterId);
+    STATE.tracksUI.cluster = clusterId;
+    GROUP_KEYS.forEach(g=> STATE.tracksUI.filters[g] = sel[g] || "");
+    switchView("tracks");
+    buildTrackFilters(); buildTracksHead(); renderTracks();
+  }));
+}
+function setupClustersToggle(){
+  document.getElementById("clusters-all-tags-toggle").addEventListener("change", e=>{
+    STATE.clustersShowAllTags = e.target.checked;
+    renderClusters();
+  });
+}
+
+/* =====================================================================
+   TAG AUTHORITY — diff mode + edit mode
+   ===================================================================== */
+function tagAuthTrackList(){
+  let rows = STATE.tagAuthUI.trackIds ? STATE.tracks.filter(t=> STATE.tagAuthUI.trackIds.has(t.id)) : STATE.tracks;
+  const s = STATE.tagAuthUI.search;
+  if(s) rows = rows.filter(t=> t.title.toLowerCase().includes(s) || t.artist.toLowerCase().includes(s));
+  return rows;
+}
+function openTagAuthority(trackIds, label){
+  STATE.tagAuthUI.trackIds = trackIds; STATE.tagAuthUI.scopeLabel = label||""; STATE.tagAuthUI.search = "";
+  document.getElementById("tagauth-search").value = "";
+  switchView("tagdiff");
+  updateTagAuthScopeBar();
+  renderTagDiff(); renderTagEdit();
+}
+function updateTagAuthScopeBar(){
+  const show = !!STATE.tagAuthUI.trackIds;
+  document.getElementById("tagauth-scope-bar").style.display = show ? "flex" : "none";
+  if(show) document.getElementById("tagauth-scope-label").textContent = STATE.tagAuthUI.scopeLabel;
+}
+function trackPlayButtonHtml(trackId){
+  return `<button class="row-play" data-play="${trackId}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l12 7-12 7z"/></svg></button>`;
+}
+function wirePlayButtons(containerId){
+  document.querySelectorAll("#"+containerId+" [data-play]").forEach(btn=>{
+    btn.addEventListener("click", e=>{ e.stopPropagation(); loadTrack(btn.dataset.play); });
+  });
+}
+function renderTagDiff(){
+  const onlyDrift = document.getElementById("diff-only-toggle").checked;
+  let rows = tagAuthTrackList().map(t=>({t, ts:tagState.get(t.id), drift:computeDrift(t)}));
+  if(onlyDrift) rows = rows.filter(r=> r.drift.rbDrift || r.drift.spDrift);
+  document.getElementById("tagdiff-tbody").innerHTML = rows.map(({t,ts,drift})=>{
+    const ledger = flattenTags(t.tags);
+    const status = (drift.rbDrift && drift.spDrift) ? '<span class="badge badge-warn">RB + Spotify drift</span>'
+      : drift.rbDrift ? '<span class="badge badge-warn">RB drift</span>'
+      : drift.spDrift ? '<span class="badge badge-warn">Spotify drift</span>'
+      : '<span class="badge badge-ok">in sync</span>';
+    const action = drift.rbDrift && drift.spDrift ? "Rewrite RB tags + resync Spotify" : drift.rbDrift ? "Rewrite RB tags" : drift.spDrift ? "Resync Spotify" : "—";
+    const syncTarget = drift.rbDrift && drift.spDrift ? "both" : drift.rbDrift ? "rb" : "spotify";
+    return `<tr><td><div style="display:flex;align-items:center;">${trackPlayButtonHtml(t.id)}
+        <div><div style="font-weight:500;">${escapeHtml(t.title)}</div><div class="dim" style="font-size:11px;">${escapeHtml(t.artist)}</div></div></div></td>
+      <td>${ts.rb.map(x=>`<span class="chip${drift.rbDrift?' chip-warn':''}">${escapeHtml(x)}</span>`).join("")}</td>
+      <td>${ts.spotify.map(x=>`<span class="chip${drift.spDrift?' chip-warn':''}">${escapeHtml(x)}</span>`).join("")}</td>
+      <td>${ledger.map(x=>`<span class="chip">${escapeHtml(x)}</span>`).join("")}</td>
+      <td>${status}</td><td class="dim" style="font-size:12px;">${action}</td>
+      <td>${(drift.rbDrift||drift.spDrift) ? `<button class="btn btn-sm btn-warn" data-track="${t.id}" data-target="${syncTarget}">Override → Queue</button>` : ""}</td></tr>`;
+  }).join("");
+  document.getElementById("tagdiff-tbody").querySelectorAll("button[data-track]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const t = trackById(btn.dataset.track);
+      queueAction("sync_tags", t.title, {trackId:t.id, syncTarget:btn.dataset.target});
+      btn.disabled = true; btn.textContent = "Queued";
+    });
+  });
+  wirePlayButtons("tagdiff-tbody");
+}
+function renderTagEdit(){
+  document.getElementById("tagedit-tbody").innerHTML = tagAuthTrackList().map(t=>{
+    return `<tr data-row="${t.id}"><td><div style="display:flex;align-items:center;">${trackPlayButtonHtml(t.id)}
+        <div><div style="font-weight:500;">${escapeHtml(t.title)}</div><div class="dim" style="font-size:11px;">${escapeHtml(t.artist)}</div></div></div></td>
+      ${GROUP_KEYS.map(g=> tagGroupCellHtml(t,g)).join("")}
+      <td class="tag-group-cell">${GROUP_KEYS.map(g=> t.autoTags[g].map(x=>`<span class="chip" style="opacity:.55;">${escapeHtml(x)}</span>`).join("")).join("")}</td>
+      </tr>`;
+  }).join("");
+  wireTagEditHandlers();
+  wirePlayButtons("tagedit-tbody");
+}
+function tagGroupCellHtml(t, group){
+  const opts = GROUPS[group].filter(v=> !t.tags[group].includes(v));
+  return `<td class="tag-group-cell" data-row="${t.id}" data-group="${group}">
+    <div class="chips">${t.tags[group].map(x=>`<span class="chip chip-editable">${escapeHtml(x)}<span class="chip-x" data-remove="${escapeHtml(x)}">✕</span></span>`).join("")}</div>
+    <select class="add-tag-select"><option value="">+ add…</option>${opts.map(o=>`<option value="${o}">${o}</option>`).join("")}</select>
+  </td>`;
+}
+function wireTagEditHandlers(){
+  document.querySelectorAll("#tagedit-tbody td.tag-group-cell[data-row]").forEach(cell=>{
+    const trackId = cell.dataset.row, group = cell.dataset.group;
+    cell.querySelectorAll("[data-remove]").forEach(x=>{
+      x.addEventListener("click", ()=>{
+        const t = trackById(trackId);
+        t.tags[group] = t.tags[group].filter(v=>v!==x.dataset.remove);
+        toast(`Ledger updated — removed "${x.dataset.remove}" (${group})`);
+        refreshAfterTagEdit(trackId);
+      });
+    });
+    const sel = cell.querySelector(".add-tag-select");
+    sel.addEventListener("change", ()=>{
+      if(!sel.value) return;
+      const t = trackById(trackId);
+      t.tags[group].push(sel.value);
+      toast(`Ledger updated — added "${sel.value}" (${group})`);
+      refreshAfterTagEdit(trackId);
+    });
+  });
+}
+function refreshAfterTagEdit(trackId){
+  renderTagEdit(); updateHeaderPills();
+  // keep diff view consistent if user flips back
+  renderTagDiff(); renderClusters();
+  // re-focus is lost on full re-render; acceptable for this preview
+}
+function setupTagAuthority(){
+  document.getElementById("diff-only-toggle").addEventListener("change", renderTagDiff);
+  document.getElementById("diff-mode-toggle").addEventListener("change", e=>{
+    const diffMode = e.target.checked;
+    document.getElementById("tagdiff-diff-mode").style.display = diffMode ? "" : "none";
+    document.getElementById("tagdiff-edit-mode").style.display = diffMode ? "none" : "";
+    if(!diffMode) renderTagEdit();
+  });
+  document.getElementById("tagauth-search").addEventListener("input", e=>{
+    STATE.tagAuthUI.search = e.target.value.toLowerCase();
+    renderTagDiff(); renderTagEdit();
+  });
+  document.getElementById("tagauth-clear-scope").addEventListener("click", ()=>{
+    STATE.tagAuthUI.trackIds = null;
+    updateTagAuthScopeBar();
+    renderTagDiff(); renderTagEdit();
+  });
+}
+
+/* =====================================================================
+   PIPELINE + MONITOR (shared run state)
+   ===================================================================== */
+const PIPELINE_STAGES = [
+  { id:"p00", script:"pipeline_00.py", label:"Download & Sync", manual:false,
+    desc:"Search Spotify / Soulseek / yt-dlp sources and download new tracks.",
+    args:[
+      {flag:"--extra-playlists", label:"Extra playlists", kind:"toggle"},
+      {flag:"--retry-failed", label:"Retry failed", kind:"toggle"},
+      {flag:"--debug", label:"Debug (1 track)", kind:"toggle"},
+      {flag:"--slsk-only", label:"Soulseek only", kind:"toggle", exclusiveGroup:"source"},
+      {flag:"--ytdlp-only", label:"yt-dlp only", kind:"toggle", exclusiveGroup:"source"},
+      {flag:"--reconcile-dry", label:"Reconcile dry-run", kind:"toggle"},
+      {flag:"--sweep", label:"Sweep", kind:"select", options:[
+        {value:"", text:"Sweep: off"}, {value:"all", text:"Sweep: all sources"}, {value:"manual", text:"Sweep: manual"},
+        {value:"bandcamp", text:"Sweep: bandcamp"}, {value:"beatport", text:"Sweep: beatport"}, {value:"soulseek", text:"Sweep: soulseek"},
+      ]},
+    ]},
+  { id:"p01", script:"pipeline_01.py", label:"Embed & Register", manual:false,
+    desc:"Run Essentia analysis, extract embeddings, write new rows to the ledger.",
+    args:[
+      {flag:"--commit-every", label:"Commit every", kind:"number", default:10, placeholder:"10"},
+      {flag:"--debug", label:"Debug", kind:"toggle_number", default:1},
+      {flag:"--workers", label:"Workers", kind:"number", placeholder:"auto"},
+    ]},
+  { id:"rb_import", script:null, label:"Import to Rekordbox", manual:true,
+    desc:"Drag the audio/ folder into Rekordbox and let it analyze the new tracks. This step happens in Rekordbox itself — it can't be triggered from here." },
+  { id:"p02", script:"pipeline_02.py", label:"Cluster & Generate Playlists", manual:false,
+    desc:"UMAP + HDBSCAN over embeddings, build cluster playlists.",
+    args:[
+      {flag:"--manual-params", label:"Manual params", kind:"toggle"},
+      {flag:"--skip-viz", label:"Skip visualisation", kind:"toggle"},
+      {flag:"--skip-sweep", label:"Skip sweep", kind:"toggle"},
+    ]},
+  { id:"p03", script:"pipeline_03.py", label:"Tag & Sync", manual:false,
+    desc:"Diff the ledger against RB MyTags / Spotify and write tag changes.",
+    args:[
+      {flag:"--dry-run", label:"Dry run", kind:"toggle"},
+      {flag:"--apply-taxonomy", label:"Apply taxonomy", kind:"toggle"},
+      {flag:"--overwrite", label:"Overwrite all", kind:"toggle"},
+      {flag:"--m3u8", label:"Export .m3u8 instead", kind:"toggle"},
+      {flag:"--commit-every", label:"Commit every", kind:"number", placeholder:"config default"},
+    ]},
+];
+const UTILITY_SCRIPTS = [
+  { id:"sp2slsk", script:"sp2slsk.py", label:"Upgrade yt-dlp → Soulseek", manual:false,
+    desc:"Re-source ytdlp-downloaded tracks from Soulseek when a higher-quality match exists. Moves the old file to bin/ and updates the ledger; DB paths stay valid.",
+    args:[
+      {flag:"--dry-run", label:"Dry run", kind:"toggle"},
+      {flag:"--limit", label:"Limit", kind:"number", placeholder:"all"},
+    ]},
+];
+function findStage(id){ return PIPELINE_STAGES.find(s=>s.id===id) || UTILITY_SCRIPTS.find(s=>s.id===id); }
+
+const LOG_LINES = {
+  p00:["searching Spotify playlists for new tracks","slskd search: {n} candidates found","downloading via Soulseek","yt-dlp fallback triggered for {n} tracks","reconcile: {n} ghost ledger entries found"],
+  p01:["essentia analysis: track {n}/1830","embedding extracted (1280d)","genre vector computed (519d)","commit: {n} tracks written to ledger"],
+  p02:["umap fit: n_neighbors=30, n_components=20","hdbscan: min_cluster_size=50","{n} clusters formed, 27% noise","writing cluster playlists"],
+  p03:["diffing ledger vs RB MyTags","clearing auto-assigned tag groups","writing {n} MyTag rows","skipped {n} tracks — no signal"],
+  sp2slsk:["scanning ledger for ytdlp-sourced tracks","slskd search: {n} candidates","upgrading {n} files to Soulseek source","moved {n} old files to bin/"],
+};
+function logLine(stageId){ return pick(LOG_LINES[stageId]).replace("{n}", randInt(4,1830)); }
+
+const PIPELINE = { running:false, current:null, progress:0, stageStatus:{}, stageLastRun:{}, manualDone:{}, awaitingManual:false, pendingNext:null, log:[], intervalId:null };
+[...PIPELINE_STAGES, ...UTILITY_SCRIPTS].forEach(s=>{ PIPELINE.stageStatus[s.id]="idle"; PIPELINE.stageLastRun[s.id]=null; });
+PIPELINE_STAGES.filter(s=>s.manual).forEach(s=> PIPELINE.manualDone[s.id]=false);
+
+function initPipelineArgs(){
+  STATE.pipelineArgs = {};
+  [...PIPELINE_STAGES, ...UTILITY_SCRIPTS].forEach(s=>{
+    STATE.pipelineArgs[s.id] = {};
+    (s.args||[]).forEach(a=>{
+      if(a.kind==="toggle") STATE.pipelineArgs[s.id][a.flag] = false;
+      else if(a.kind==="select") STATE.pipelineArgs[s.id][a.flag] = "";
+      else if(a.kind==="number") STATE.pipelineArgs[s.id][a.flag] = a.default ?? "";
+      else if(a.kind==="toggle_number") STATE.pipelineArgs[s.id][a.flag] = {on:false, n:a.default??1};
+    });
+  });
+}
+function buildArgString(stageId){
+  const stage = findStage(stageId); if(!stage || !stage.args) return "";
+  const vals = STATE.pipelineArgs[stageId]; const parts = [];
+  stage.args.forEach(a=>{
+    const v = vals[a.flag];
+    if(a.kind==="toggle"){ if(v) parts.push(a.flag); }
+    else if(a.kind==="select"){ if(v){ parts.push(a.flag); if(v!=="all") parts.push(v); } }
+    else if(a.kind==="number"){ if(v!==undefined && v!==null && v!=="") parts.push(a.flag, v); }
+    else if(a.kind==="toggle_number"){ if(v && v.on){ parts.push(a.flag); if(v.n!=null && v.n!=="") parts.push(v.n); } }
+  });
+  return parts.join(" ");
+}
+function renderArgControlsHtml(stage){
+  const vals = STATE.pipelineArgs[stage.id];
+  return (stage.args||[]).map(a=>{
+    if(a.kind==="toggle"){
+      const active = !!vals[a.flag];
+      return `<button type="button" class="chip chip-toggle${active?' chip-selected':''}" data-pipe-toggle="${stage.id}|${a.flag}">${a.label}</button>`;
+    }
+    if(a.kind==="select"){
+      const cur = vals[a.flag] ?? "";
+      return `<select class="pipe-arg-select" data-pipe-select="${stage.id}|${a.flag}">` +
+        a.options.map(o=>`<option value="${o.value}" ${o.value===cur?"selected":""}>${o.text}</option>`).join("") + `</select>`;
+    }
+    if(a.kind==="number"){
+      const cur = vals[a.flag] ?? "";
+      return `<span class="pipe-arg-number">${a.label}<input type="number" data-pipe-number="${stage.id}|${a.flag}" value="${cur}" placeholder="${a.placeholder||''}"></span>`;
+    }
+    if(a.kind==="toggle_number"){
+      const v = vals[a.flag] || {on:false,n:a.default};
+      return `<span class="pipe-arg-togglenum"><button type="button" class="chip chip-toggle${v.on?' chip-selected':''}" data-pipe-togglenum-on="${stage.id}|${a.flag}">${a.label}</button>
+        <input type="number" data-pipe-togglenum-n="${stage.id}|${a.flag}" value="${v.n}" ${v.on?"":"disabled"}></span>`;
+    }
+    return "";
+  }).join("");
+}
+function renderStageCardHtml(stage, order){
+  if(stage.manual){
+    const done = PIPELINE.manualDone[stage.id];
+    const awaiting = PIPELINE.awaitingManual && PIPELINE.pendingNext!=null && PIPELINE_STAGES[PIPELINE.pendingNext-1] && PIPELINE_STAGES[PIPELINE.pendingNext-1].id===stage.id;
+    return `<div class="stage-card${awaiting?' awaiting':''}" id="stage-card-${stage.id}">
+      <span class="sc-order">${order}</span>
+      <div class="sc-name">${stage.label}</div>
+      <span class="badge" style="margin-bottom:8px;display:inline-block;">manual step</span>
+      <div class="sc-desc">${stage.desc}</div>
+      <label class="dim" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+        <input type="checkbox" data-manual-done="${stage.id}" ${done?"checked":""}> Mark as done</label>
+    </div>`;
+  }
+  const status = PIPELINE.stageStatus[stage.id];
+  const lastRun = PIPELINE.stageLastRun[stage.id];
+  const metaHtml = status==="running" ? `<span class="badge badge-live">running · ${Math.round(PIPELINE.progress)}%</span>`
+    : lastRun ? `last run: ${fmtAgoMs(lastRun)}` : "never run";
+  const cmd = `$ python3.11 ${stage.script}${buildArgString(stage.id) ? " "+buildArgString(stage.id) : ""}`;
+  return `<div class="stage-card" id="stage-card-${stage.id}">
+    ${order!=null ? `<span class="sc-order">${order}</span>` : ""}
+    <div class="sc-name">${stage.label}</div>
+    <div class="sc-script">${stage.script}</div>
+    <div class="sc-desc">${stage.desc}</div>
+    <div class="sc-args">${renderArgControlsHtml(stage)}</div>
+    <div class="sc-cmd">${escapeHtml(cmd)}</div>
+    <div class="sc-meta">${metaHtml}</div>
+    <button class="btn btn-sm" data-run="${stage.id}">${status==="running"?"Running…":"Run"}</button>
+  </div>`;
+}
+function buildStageGrid(){
+  document.getElementById("stage-grid").innerHTML = PIPELINE_STAGES.map((s,i)=> renderStageCardHtml(s, i+1)).join("");
+  document.getElementById("utility-grid").innerHTML = UTILITY_SCRIPTS.map(s=> renderStageCardHtml(s, null)).join("");
+}
+function refreshStageCard(stageId){
+  const el = document.getElementById("stage-card-"+stageId);
+  const stage = findStage(stageId);
+  if(!el || !stage) return;
+  const idx = PIPELINE_STAGES.findIndex(s=>s.id===stageId);
+  el.outerHTML = renderStageCardHtml(stage, idx>=0 ? idx+1 : null);
+}
+function setRunButtonsDisabled(disabled){
+  document.querySelectorAll("[data-run]").forEach(b=> b.disabled = disabled);
+  document.getElementById("btn-run-all").disabled = disabled;
+}
+function wirePipelineDelegation(){
+  const view = document.getElementById("view-pipeline");
+  view.addEventListener("click", e=>{
+    const runBtn = e.target.closest("[data-run]");
+    if(runBtn){ runStage(runBtn.dataset.run, false); return; }
+    const toggle = e.target.closest("[data-pipe-toggle]");
+    if(toggle){
+      const [stageId, flag] = toggle.dataset.pipeToggle.split("|");
+      const stage = findStage(stageId);
+      const vals = STATE.pipelineArgs[stageId];
+      vals[flag] = !vals[flag];
+      const spec = stage.args.find(a=>a.flag===flag);
+      if(vals[flag] && spec && spec.exclusiveGroup){
+        stage.args.filter(a=> a.exclusiveGroup===spec.exclusiveGroup && a.flag!==flag).forEach(a=> vals[a.flag]=false);
+      }
+      refreshStageCard(stageId); return;
+    }
+    const tnToggle = e.target.closest("[data-pipe-togglenum-on]");
+    if(tnToggle){
+      const [stageId, flag] = tnToggle.dataset.pipeTogglenumOn.split("|");
+      const v = STATE.pipelineArgs[stageId][flag];
+      v.on = !v.on;
+      refreshStageCard(stageId); return;
+    }
+  });
+  view.addEventListener("change", e=>{
+    const sel = e.target.closest("[data-pipe-select]");
+    if(sel){ const [stageId,flag] = sel.dataset.pipeSelect.split("|"); STATE.pipelineArgs[stageId][flag] = sel.value; refreshStageCard(stageId); return; }
+    const num = e.target.closest("[data-pipe-number]");
+    if(num){ const [stageId,flag] = num.dataset.pipeNumber.split("|"); STATE.pipelineArgs[stageId][flag] = num.value; refreshStageCard(stageId); return; }
+    const tnNum = e.target.closest("[data-pipe-togglenum-n]");
+    if(tnNum){ const [stageId,flag] = tnNum.dataset.pipeTogglenumN.split("|"); STATE.pipelineArgs[stageId][flag].n = tnNum.value; refreshStageCard(stageId); return; }
+    const manualDone = e.target.closest("[data-manual-done]");
+    if(manualDone){
+      const stageId = manualDone.dataset.manualDone;
+      PIPELINE.manualDone[stageId] = manualDone.checked;
+      if(manualDone.checked && PIPELINE.awaitingManual){
+        PIPELINE.awaitingManual = false;
+        const next = PIPELINE.pendingNext;
+        appendPipelineLog(`▶ resuming — ${PIPELINE_STAGES[next].script}`);
+        runStage(PIPELINE_STAGES[next].id, true);
+      }
+      refreshStageCard(stageId); updateMonitorUI();
+      return;
+    }
+  });
+}
+function appendPipelineLog(text){
+  PIPELINE.log.push(text);
+  if(PIPELINE.log.length>200) PIPELINE.log.shift();
+  ["pipeline-console","log-console"].forEach(id=>{
+    const el = document.getElementById(id);
+    const time = new Date().toLocaleTimeString([],{hour12:false});
+    const div = document.createElement("div"); div.className="log-line";
+    div.innerHTML = `<span class="lt">[${time}]</span> ${escapeHtml(text)}`;
+    el.appendChild(div);
+    while(el.children.length>80) el.removeChild(el.firstChild);
+    el.scrollTop = el.scrollHeight;
+  });
+}
+function runStage(stageId, partOfAll){
+  const stage = findStage(stageId);
+  if(!stage || stage.manual || PIPELINE.running) return;
+  PIPELINE.running = true; PIPELINE.current = stageId; PIPELINE.progress = 0;
+  PIPELINE.stageStatus[stageId] = "running";
+  setRunButtonsDisabled(true);
+  refreshStageCard(stageId); updateMonitorUI();
+  appendPipelineLog(`▶ ${stage.script}${buildArgString(stageId) ? " "+buildArgString(stageId) : ""}`);
+  PIPELINE.intervalId = setInterval(()=>{
+    PIPELINE.progress += rand(10,22);
+    appendPipelineLog(logLine(stageId));
+    if(PIPELINE.progress>=100){
+      clearInterval(PIPELINE.intervalId);
+      PIPELINE.progress = 100; PIPELINE.stageStatus[stageId] = "done"; PIPELINE.stageLastRun[stageId] = Date.now();
+      STATE.lastRunTimestamp = Date.now();
+      appendPipelineLog(`✓ ${stage.script} complete`);
+      updateHeaderPills();
+      PIPELINE.running = false;
+      const idx = PIPELINE_STAGES.findIndex(s=>s.id===stageId);
+      if(partOfAll && idx>=0 && idx < PIPELINE_STAGES.length-1){
+        const next = PIPELINE_STAGES[idx+1];
+        if(next.manual){
+          PIPELINE.awaitingManual = true; PIPELINE.pendingNext = idx+2;
+          PIPELINE.current = null;
+          appendPipelineLog(`⏸ paused — complete "${next.label}" manually, then check it off to continue`);
+          setRunButtonsDisabled(false);
+          refreshStageCard(next.id); updatePipelineUI(); updateMonitorUI();
+        } else {
+          runStage(next.id, true);
+        }
+      } else {
+        PIPELINE.current = null; setRunButtonsDisabled(false);
+        refreshStageCard(stageId); updatePipelineUI(); updateMonitorUI();
+      }
+    } else { refreshStageCard(stageId); updateMonitorUI(); }
+  }, 420);
+}
+function updatePipelineUI(){
+  PIPELINE_STAGES.forEach(s=>{ if(!s.manual) refreshStageCard(s.id); });
+  UTILITY_SCRIPTS.forEach(s=> refreshStageCard(s.id));
+}
+function updateMonitorUI(){
+  document.querySelectorAll("#stepper .step").forEach(el=>{
+    const i = +el.dataset.i;
+    const stage = PIPELINE_STAGES[i];
+    const done = stage.manual ? PIPELINE.manualDone[stage.id] : PIPELINE.stageStatus[stage.id]==="done";
+    el.classList.toggle("done", done);
+    el.classList.toggle("current", stage.id===PIPELINE.current);
+  });
+  const currentStage = PIPELINE.current ? findStage(PIPELINE.current) : null;
+  const label = currentStage ? currentStage.label
+    : PIPELINE.awaitingManual ? "Waiting on manual step"
+    : Object.values(PIPELINE.stageLastRun).some(x=>x) ? "Idle" : "No runs yet";
+  document.getElementById("monitor-run-label").textContent = label;
+  document.getElementById("run-progress").style.width = (currentStage ? PIPELINE.progress : 0)+"%";
+  document.getElementById("run-progress-pct").textContent = Math.round(currentStage?PIPELINE.progress:0)+"%";
+  const idx = currentStage ? PIPELINE_STAGES.findIndex(s=>s.id===currentStage.id) : -1;
+  document.getElementById("run-eta").textContent = idx>=0 ? `stage ${idx+1}/${PIPELINE_STAGES.length}` : "—";
+}
+function buildStepper(){
+  document.getElementById("stepper").innerHTML = PIPELINE_STAGES.map((s,i)=>`<div class="step" data-i="${i}"><div class="step-line"></div><div class="step-dot"></div><div class="step-label">${s.label}</div></div>`).join("");
+}
+
+/* downloads (ambient, independent of run state) */
+let dlSeq = 1;
+function newDownload(){ const artist=genArtist(), title=genTitle(); const total=rand(6,16); return {id:"dl"+(dlSeq++), name:genScenePath(artist,title), total, done:rand(0,total*0.15)}; }
+let downloads = Array.from({length:5}, newDownload);
+function renderDownloads(){
+  document.getElementById("downloads-list").innerHTML = downloads.map(d=>{
+    const pct = Math.min(100, d.done/d.total*100);
+    return `<div class="dl-row"><div class="dl-name" title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</div>
+      <div class="dl-bottom"><div class="progress-outer"><div class="progress-inner" style="width:${pct}%"></div></div>
+      <span class="dl-size mono">${d.done.toFixed(1)}/${d.total.toFixed(1)} MB</span></div></div>`;
+  }).join("");
+  document.getElementById("dl-active-count").textContent = downloads.length+" active";
+}
+function downloadsTick(){
+  downloads.forEach(d=> d.done = Math.min(d.total, d.done+rand(0.2,1.6)));
+  const finished = downloads.filter(d=> d.done>=d.total);
+  if(finished.length){ downloads = downloads.filter(d=> d.done<d.total); finished.forEach(()=> downloads.push(newDownload())); }
+  renderDownloads();
+}
+
+/* =====================================================================
+   SET BUILDER
+   ===================================================================== */
+function renderSbTrackList(){
+  const ui = STATE.sbUI;
+  const matches = STATE.tracks.filter(t=> matchesFilters(t, ui));
+  document.getElementById("sb-result-count").textContent = matches.length+" of "+STATE.tracks.length;
+  const list = matches.slice(0,150);
+  document.getElementById("sb-track-list").innerHTML = list.map(t=>{
+    const c = clusterById(t.cluster_id);
+    const inSet = STATE.setBuilder.items.includes(t.id);
+    return `<div class="sb-track-row" draggable="true" data-track="${t.id}" style="${inSet?'opacity:.4;':''}">
+      <span class="swatch" style="background:${c.color}"></span>
+      <div class="tt-main"><div class="tt-title">${escapeHtml(t.title)}</div><div class="tt-meta">${escapeHtml(t.artist)} · ${t.bpm} BPM</div></div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll(".sb-track-row").forEach(row=>{
+    row.addEventListener("dragstart", e=>{ e.dataTransfer.setData("text/plain", JSON.stringify({from:"library", id:row.dataset.track})); });
+    row.addEventListener("dblclick", ()=> sbAddTrack(row.dataset.track));
+  });
+}
+function sbAddTrack(id){
+  if(STATE.setBuilder.items.includes(id)) { toast("Already in the set"); return; }
+  STATE.setBuilder.items.push(id);
+  renderSetBuilder();
+  renderSbTrackList();
+}
+function sbRemoveTrack(id){ STATE.setBuilder.items = STATE.setBuilder.items.filter(x=>x!==id); renderSetBuilder(); renderSbTrackList(); }
+function sbReorder(fromIdx, toIdx){
+  const items = STATE.setBuilder.items;
+  const [moved] = items.splice(fromIdx,1);
+  items.splice(toIdx,0,moved);
+  renderSetBuilder();
+}
+function setCentroidNeighbors(itemIds, k, excludeIds){
+  const items = itemIds.map(trackById).filter(Boolean);
+  if(!items.length) return [];
+  const cx = items.reduce((s,t)=>s+t.x,0)/items.length;
+  const cy = items.reduce((s,t)=>s+t.y,0)/items.length;
+  return STATE.tracks.filter(t=> !excludeIds.has(t.id))
+    .map(t=>({t, d:Math.hypot(t.x-cx, t.y-cy)})).sort((a,b)=>a.d-b.d).slice(0,k);
+}
+function renderSetBuilder(){
+  const items = STATE.setBuilder.items.map(trackById).filter(Boolean);
+  const totalSec = items.reduce((s,t)=>s+t.duration,0);
+  const avgBpm = items.length ? Math.round(items.reduce((s,t)=>s+t.bpm,0)/items.length) : 0;
+  document.getElementById("sb-stats").innerHTML = `<span>${items.length} tracks</span><span>${fmtDuration(totalSec)}</span><span>${avgBpm||"—"} avg BPM</span>`;
+
+  const listEl = document.getElementById("sb-list");
+  if(items.length===0){ listEl.innerHTML = `<div class="sb-empty">Drag tracks here, or double-click a track on the left.</div>`; }
+  else {
+    listEl.innerHTML = items.map((t,i)=>{
+      const c = clusterById(t.cluster_id);
+      return `<div class="sb-item" draggable="true" data-idx="${i}" data-track="${t.id}">
+        <span class="ix mono">${i+1}</span><span class="swatch" style="background:${c.color}"></span>
+        <div class="tt-main"><div class="tt-title">${escapeHtml(t.title)}</div><div class="tt-meta">${escapeHtml(t.artist)} · ${t.bpm} BPM</div></div>
+        <button class="sb-remove" data-remove="${t.id}">✕</button>
+      </div>`;
+    }).join("");
+  }
+  document.querySelectorAll("#sb-list .sb-item").forEach(row=>{
+    row.addEventListener("dragstart", e=>{ e.dataTransfer.setData("text/plain", JSON.stringify({from:"set", idx:+row.dataset.idx})); });
+    row.addEventListener("dragover", e=>{ e.preventDefault(); row.classList.add("drag-over"); });
+    row.addEventListener("dragleave", ()=> row.classList.remove("drag-over"));
+    row.addEventListener("drop", e=>{
+      e.preventDefault(); row.classList.remove("drag-over");
+      const data = JSON.parse(e.dataTransfer.getData("text/plain"));
+      if(data.from==="library") sbAddTrack(data.id);
+      else if(data.from==="set") sbReorder(data.idx, +row.dataset.idx);
+    });
+  });
+  document.querySelectorAll("#sb-list [data-remove]").forEach(btn=> btn.addEventListener("click", ()=> sbRemoveTrack(btn.dataset.remove)));
+
+  // suggestions based on the mean position (centroid) of the whole set, not just the last track added
+  const suggestBox = document.getElementById("sb-suggestions");
+  if(items.length===0){ suggestBox.innerHTML = ""; }
+  else {
+    const excl = new Set(items.map(t=>t.id));
+    const sugg = setCentroidNeighbors(STATE.setBuilder.items, 4, excl);
+    suggestBox.innerHTML = `<div class="sb-suggest-label">Matches this set's overall sound</div>` +
+      sugg.map(n=>{
+        const c = clusterById(n.t.cluster_id);
+        return `<div class="sb-suggest-row"><span class="swatch" style="background:${c.color}"></span>
+          <div class="tt-main"><div class="tt-title">${escapeHtml(n.t.title)} <span class="faint">· ${n.t.bpm} BPM</span></div></div>
+          <button class="sb-add-btn" data-add="${n.t.id}">+</button></div>`;
+      }).join("");
+    suggestBox.querySelectorAll("[data-add]").forEach(btn=> btn.addEventListener("click", ()=> sbAddTrack(btn.dataset.add)));
+  }
+}
+function setupSetBuilderDnd(){
+  const listEl = document.getElementById("sb-list");
+  listEl.addEventListener("dragover", e=> e.preventDefault());
+  listEl.addEventListener("drop", e=>{
+    if(e.target.closest(".sb-item")) return; // handled by item-level drop
+    e.preventDefault();
+    const data = JSON.parse(e.dataTransfer.getData("text/plain"));
+    if(data.from==="library") sbAddTrack(data.id);
+  });
+  buildFilterSelectors("sb-", STATE.sbUI, renderSbTrackList);
+  setupDualBpmSlider("sb-bpm-min","sb-bpm-max","sb-bpm-fill","sb-bpm-readout", STATE.sbUI, renderSbTrackList);
+  document.getElementById("sb-export").addEventListener("click", ()=>{
+    if(STATE.setBuilder.items.length===0){ toast("Add at least one track first"); return; }
+    queueAction("export_m3u8", "Set Builder · "+STATE.setBuilder.items.length+" tracks");
+  });
+  document.getElementById("sb-open-tagauth").addEventListener("click", ()=>{
+    if(STATE.setBuilder.items.length===0){ toast("Add at least one track first"); return; }
+    openTagAuthority(new Set(STATE.setBuilder.items), "Set Builder · "+STATE.setBuilder.items.length+" tracks");
+  });
+}
+
+/* =====================================================================
+   PLAYER (mock transport + BPM click via WebAudio)
+   ===================================================================== */
+const PLAYER = { trackId:null, isPlaying:false, elapsed:0, audioCtx:null, clickId:null, elapsedId:null };
+function ensureAudioCtx(){ if(!PLAYER.audioCtx){ const Ctx = window.AudioContext||window.webkitAudioContext; if(Ctx) PLAYER.audioCtx = new Ctx(); } }
+function playClick(){
+  if(!PLAYER.audioCtx) return;
+  const ctx = PLAYER.audioCtx;
+  const osc = ctx.createOscillator(), gain = ctx.createGain();
+  osc.frequency.value = 1000;
+  gain.gain.setValueAtTime(0.16, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.05);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(); osc.stop(ctx.currentTime+0.05);
+}
+function startClick(){ const t = trackById(PLAYER.trackId); if(!t) return; stopClick(); PLAYER.clickId = setInterval(playClick, 60000/t.bpm); }
+function stopClick(){ if(PLAYER.clickId){ clearInterval(PLAYER.clickId); PLAYER.clickId=null; } }
+function startElapsed(){
+  stopElapsed();
+  PLAYER.elapsedId = setInterval(()=>{
+    const t = trackById(PLAYER.trackId); if(!t) return;
+    PLAYER.elapsed += 1;
+    if(PLAYER.elapsed >= t.duration){ PLAYER.elapsed = 0; }
+    renderPlayerBar();
+  }, 1000);
+}
+function stopElapsed(){ if(PLAYER.elapsedId){ clearInterval(PLAYER.elapsedId); PLAYER.elapsedId=null; } }
+function loadTrack(id){
+  PLAYER.trackId = id; PLAYER.elapsed = 0;
+  if(PLAYER.isPlaying){ startClick(); }
+  renderPlayerBar();
+}
+function togglePlay(){
+  if(!PLAYER.trackId){ toast("Load a track first"); return; }
+  PLAYER.isPlaying = !PLAYER.isPlaying;
+  if(PLAYER.isPlaying){ ensureAudioCtx(); startClick(); startElapsed(); } else { stopClick(); stopElapsed(); }
+  renderPlayerBar();
+}
+function playbackContext(){
+  if(STATE.setBuilder.items.includes(PLAYER.trackId)) return STATE.setBuilder.items;
+  return STATE.tracksUI.lastOrder.length ? STATE.tracksUI.lastOrder : STATE.tracks.map(t=>t.id);
+}
+function stepTrack(dir){
+  if(!PLAYER.trackId) return;
+  const ctx = playbackContext();
+  const idx = ctx.indexOf(PLAYER.trackId);
+  if(idx===-1) return;
+  const next = ctx[(idx+dir+ctx.length)%ctx.length];
+  loadTrack(next);
+}
+function renderPlayerBar(){
+  const t = trackById(PLAYER.trackId);
+  if(!t){
+    document.getElementById("pb-title").textContent = "Nothing loaded";
+    document.getElementById("pb-meta").textContent = "—";
+    document.getElementById("pb-swatch").style.background = "var(--line)";
+    document.getElementById("pb-elapsed").textContent = "0:00";
+    document.getElementById("pb-duration").textContent = "0:00";
+    document.getElementById("pb-scrub-fill").style.width = "0%";
+    return;
+  }
+  const c = clusterById(t.cluster_id);
+  document.getElementById("pb-title").textContent = t.title;
+  document.getElementById("pb-meta").textContent = t.artist+" · "+t.bpm+" BPM";
+  document.getElementById("pb-swatch").style.background = c.color;
+  document.getElementById("pb-elapsed").textContent = fmtDuration(PLAYER.elapsed);
+  document.getElementById("pb-duration").textContent = fmtDuration(t.duration);
+  document.getElementById("pb-scrub-fill").style.width = (PLAYER.elapsed/t.duration*100)+"%";
+  document.getElementById("pb-play-icon").innerHTML = PLAYER.isPlaying ? '<path d="M8 5h3v14H8zM13 5h3v14h-3z"/>' : '<path d="M8 5l12 7-12 7z"/>';
+}
+function setupPlayer(){
+  document.getElementById("pb-play").addEventListener("click", togglePlay);
+  document.getElementById("pb-next").addEventListener("click", ()=> stepTrack(1));
+  document.getElementById("pb-prev").addEventListener("click", ()=> stepTrack(-1));
+  document.getElementById("pb-scrub").addEventListener("click", e=>{
+    const t = trackById(PLAYER.trackId); if(!t) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    PLAYER.elapsed = Math.round((e.clientX-rect.left)/rect.width * t.duration);
+    renderPlayerBar();
+  });
+}
+
+/* =====================================================================
+   THEME TOGGLE
+   ===================================================================== */
+function setupTheme(){
+  const SUN = '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  const MOON = '<svg viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8.5 8.5 0 1110.2 4a7 7 0 009.8 10.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const btn = document.getElementById("theme-toggle");
+  btn.innerHTML = MOON;
+  btn.addEventListener("click", ()=>{
+    const isLight = document.documentElement.getAttribute("data-theme")==="light";
+    document.documentElement.setAttribute("data-theme", isLight ? "dark" : "light");
+    btn.innerHTML = isLight ? MOON : SUN;
+  });
+}
+
+/* =====================================================================
+   MAP ACTIONS + INIT
+   ===================================================================== */
+function wireMapActions(){
+  document.getElementById("btn-clear-selection").addEventListener("click", clearSelection);
+  document.getElementById("btn-export-m3u8").addEventListener("click", ()=>{ queueAction("export_m3u8", STATE.map.selection.size+" tracks"); clearSelection(); });
+}
+
+function init(){
+  buildSidebar();
+  setupMapInteraction();
+  wireMapActions();
+  buildTrackFilters();
+  buildTracksHead();
+  buildStepper();
+  initPipelineArgs();
+  buildStageGrid();
+  wirePipelineDelegation();
+  setupTagAuthority();
+  setupClustersToggle();
+  setupSetBuilderDnd();
+  setupPlayer();
+  setupTheme();
+
+  renderMap();
+  renderTracks();
+  renderClusters();
+  renderTagDiff();
+  renderDownloads();
+  renderQueue();
+  renderSbTrackList();
+  renderSetBuilder();
+  updateMonitorUI();
+  updatePipelineUI();
+  updateHeaderPills();
+  renderPlayerBar();
+
+  document.getElementById("dp-close").addEventListener("click", closeDetail);
+  document.getElementById("btn-run-all").addEventListener("click", ()=> runStage(PIPELINE_STAGES[0].id, true));
+  document.getElementById("pill-lastrun").addEventListener("click", ()=> switchView("pipeline"));
+  document.getElementById("pill-sync").addEventListener("click", ()=> switchView("tagdiff"));
+  document.getElementById("track-count-meta").textContent = STATE.tracks.length+" tracks";
+
+  setInterval(downloadsTick, 900);
+  setInterval(queueTick, 1000);
+  setInterval(updateHeaderPills, 8000);
+}
+
+function showSetupWizard(status){
+  document.getElementById("setup-wizard").style.display = "flex";
+  const v = status.values;
+  document.getElementById("sw-library-root").value = v.library_root || "";
+  document.getElementById("sw-rb-enabled").checked = !!v.rekordbox_enabled;
+  document.getElementById("sw-rb-master").value = v.rekordbox_master_db || "";
+  document.getElementById("sw-sp-id").placeholder = v.spotify_client_id_set ? "•••• already set — leave blank to keep" : "";
+  document.getElementById("sw-sp-secret").placeholder = v.spotify_client_secret_set ? "•••• already set — leave blank to keep" : "";
+  document.getElementById("sw-slskd-user").placeholder = v.slskd_username_set ? "•••• already set — leave blank to keep" : "";
+  document.getElementById("sw-slskd-pass").placeholder = v.slskd_password_set ? "•••• already set — leave blank to keep" : "";
+  const toggleMaster = ()=>{ document.getElementById("sw-rb-master-row").style.display = document.getElementById("sw-rb-enabled").checked ? "" : "none"; };
+  document.getElementById("sw-rb-enabled").addEventListener("change", toggleMaster);
+  toggleMaster();
+
+  const problemsEl = document.getElementById("setup-problems");
+  if(status.problems && status.problems.length && status.values.library_root){
+    problemsEl.style.display = "block";
+    problemsEl.innerHTML = status.problems.map(p=>escapeHtml(p)).join("<br>");
+  }
+
+  document.getElementById("setup-form").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const submitBtn = document.getElementById("sw-submit");
+    submitBtn.disabled = true; submitBtn.textContent = "Saving…";
+    try{
+      const res = await fetch("/api/setup", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          library_root: document.getElementById("sw-library-root").value,
+          rekordbox_enabled: document.getElementById("sw-rb-enabled").checked,
+          rekordbox_master_db: document.getElementById("sw-rb-master").value,
+          spotify_client_id: document.getElementById("sw-sp-id").value,
+          spotify_client_secret: document.getElementById("sw-sp-secret").value,
+          slskd_username: document.getElementById("sw-slskd-user").value,
+          slskd_password: document.getElementById("sw-slskd-pass").value,
+        }),
+      });
+      const result = await res.json();
+      if(result.setup_complete){
+        document.getElementById("setup-wizard").style.display = "none";
+        bootApp();
+      } else {
+        problemsEl.style.display = "block";
+        problemsEl.innerHTML = (result.problems||[]).map(p=>escapeHtml(p)).join("<br>") || "Still missing required fields.";
+      }
+    } catch(err){
+      problemsEl.style.display = "block";
+      problemsEl.textContent = "Couldn't reach the backend: " + err.message;
+    } finally {
+      submitBtn.disabled = false; submitBtn.textContent = "Save & continue";
+    }
+  }, {once:true});
+}
+
+function bootApp(){
+  init();
+  loadRealData().then(()=>{
+    buildTrackFilters(); buildTracksHead(); renderTracks();
+    renderClusters(); renderMap();
+    document.getElementById("track-count-meta").textContent = STATE.tracks.length+" tracks";
+  }).catch(err => {
+    console.error("Couldn't load tracks from the backend:", err);
+    document.getElementById("track-count-meta").textContent = "Couldn't load tracks (" + err.message + ")";
+  });
+}
+
+/* ---- server-side directory/file browser (wizard Browse buttons) ----
+   A native file picker can't hand JS a real filesystem path (browsers hide
+   it on purpose), but this server already has full local filesystem access
+   -- so just ask it what's on disk instead. */
+const browseState = { targetInput:null, filesOnly:false, currentPath:null };
+
+async function browseTo(path){
+  let url = "/api/browse";
+  const params = [];
+  if(path) params.push("path="+encodeURIComponent(path));
+  if(browseState.filesOnly) params.push("files=true");
+  if(params.length) url += "?"+params.join("&");
+
+  let data;
+  try{ data = await fetch(url).then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }); }
+  catch(err){ alert("Couldn't browse: "+err.message); return; }
+
+  browseState.currentPath = data.path;
+  browseState.currentDisplayPath = data.display_path;
+  document.getElementById("browse-current-path").textContent = data.display_path || "Choose a drive";
+  document.getElementById("browse-select").style.display = (browseState.filesOnly || !data.path) ? "none" : "";
+
+  const list = document.getElementById("browse-list");
+  let rows = "";
+  if(data.path){
+    rows += `<div class="browse-row" data-nav="${data.parent ? escapeHtml(data.parent) : ''}">⬆ .. (up)</div>`;
+  }
+  if(!data.entries.length){
+    rows += `<div class="browse-row empty">(nothing here)</div>`;
+  } else {
+    rows += data.entries.map(e=>
+      `<div class="browse-row ${e.is_dir?'':'is-file'}" data-${e.is_dir?'nav':'pick'}="${escapeHtml(e.is_dir?e.path:e.display_path)}">${e.is_dir?'📁':'📄'}&nbsp; ${escapeHtml(e.name)}</div>`
+    ).join("");
+  }
+  list.innerHTML = rows;
+  list.querySelectorAll("[data-nav]").forEach(el=> el.addEventListener("click", ()=> browseTo(el.dataset.nav || null)));
+  list.querySelectorAll("[data-pick]").forEach(el=> el.addEventListener("click", ()=>{
+    document.getElementById(browseState.targetInput).value = el.dataset.pick;
+    document.getElementById("browse-modal").style.display = "none";
+  }));
+}
+
+function openBrowser(targetInputId, filesOnly){
+  browseState.targetInput = targetInputId;
+  browseState.filesOnly = !!filesOnly;
+  document.getElementById("browse-title").textContent = filesOnly ? "Choose a file" : "Choose a folder";
+  document.getElementById("browse-modal").style.display = "flex";
+  browseTo(null);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-browse-dir]").forEach(btn=>
+    btn.addEventListener("click", ()=> openBrowser(btn.dataset.browseDir, false)));
+  document.querySelectorAll("[data-browse-file]").forEach(btn=>
+    btn.addEventListener("click", ()=> openBrowser(btn.dataset.browseFile, true)));
+  document.getElementById("browse-cancel").addEventListener("click", ()=>{
+    document.getElementById("browse-modal").style.display = "none";
+  });
+  document.getElementById("browse-select").addEventListener("click", ()=>{
+    if(browseState.currentDisplayPath){
+      document.getElementById(browseState.targetInput).value = browseState.currentDisplayPath;
+    }
+    document.getElementById("browse-modal").style.display = "none";
+  });
+});
+
+document.addEventListener("DOMContentLoaded", async () => {
+  let status;
+  try{
+    status = await fetch("/api/setup").then(r=>r.json());
+  } catch(err){
+    alert("Couldn't reach the backend at all — is `uvicorn app:app` running?\n" + err.message);
+    return;
+  }
+  if(!status.setup_complete){ showSetupWizard(status); return; }
+  bootApp();
+});
+})();
+</script>
+</body>
+</html>

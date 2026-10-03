@@ -1,0 +1,363 @@
+{
+  "config_version": 1,
+  "setup_complete": false,
+  "paths": {
+    "library_root": "",
+    "audio": "{root}/audio",
+    "db": "{root}/db",
+    "bin": "{root}/bin",
+    "soulseek": "{root}/source/soulseek",
+    "slskd": "{root}/slskd",
+    "playlists": "{root}/playlists",
+    "logs": "{root}/logs",
+    "tmp": "{root}/tmp",
+    "backups": "{root}/backups",
+    "ledger": "{root}/db/sync_ledger.json",
+    "music_db": "{root}/db/music.db"
+  },
+  "rekordbox": {
+    "enabled": true,
+    "master_db": "",
+    "playlist_suffix": " [RB]",
+    "recently_added_days": 30,
+    "overwrite": true,
+    "commit_every": 500
+  },
+  "sources": {
+    "ytdlp": {
+      "folder": "audio",
+      "upgradeable": true
+    },
+    "soulseek": {
+      "folder": "source/soulseek",
+      "upgradeable": false
+    },
+    "manual": {
+      "folder": "source/manual",
+      "upgradeable": false
+    },
+    "bandcamp": {
+      "folder": "source/bandcamp",
+      "upgradeable": false
+    },
+    "beatport": {
+      "folder": "source/beatport",
+      "upgradeable": false
+    }
+  },
+  "spotify": {
+    "redirect_uri": "http://localhost:8888/callback",
+    "scopes": "playlist-read-private playlist-modify-private playlist-modify-public",
+    "token_cache": "{db}/.spotify_cache",
+    "tag_playlists": [
+      "Floor - Main Floor [RB]",
+      "Floor - Second Floor [RB]",
+      "Floor - Lounge [RB]",
+      "Floor - Midnight Set [RB]",
+      "Floor - Morning Set [RB]",
+      "Opener [RB]",
+      "Warm Up [RB]",
+      "Build Up [RB]",
+      "Riser [RB]",
+      "Peak Time [RB]",
+      "Bridge - Break [RB]",
+      "Build Down [RB]",
+      "Closer [RB]",
+      "After Hours [RB]",
+      "Flag - Favorite [RB]",
+      "Flag - Sharing [RB]"
+    ]
+  },
+  "slskd": {
+    "url": "http://127.0.0.1:5030",
+    "download_dir": "",
+    "search_wait": 30,
+    "dl_timeout": 600,
+    "title_thresh": 85,
+    "ext_thresh": 85,
+    "queue_ttl_days": 7,
+    "queue_retry_hours": 24,
+    "max_attempts": 10,
+    "max_queue": 10,
+    "free_slot_only": true,
+    "config_file": "",
+    "share_dirs": []
+  },
+  "download": {
+    "enabled": true,
+    "accepted_formats": [
+      "mp3",
+      "wav",
+      "flac"
+    ],
+    "min_bitrate_mp3": 320,
+    "min_bitrate_m4a": 256,
+    "min_duration_s": 60,
+    "size_limits_mb": {
+      "mp3": [
+        20,
+        50
+      ],
+      "m4a": [
+        20,
+        50
+      ],
+      "aac": [
+        20,
+        50
+      ],
+      "flac": [
+        null,
+        150
+      ],
+      "wav": [
+        null,
+        250
+      ],
+      "aiff": [
+        null,
+        250
+      ]
+    },
+    "fingerprint_len": 0,
+    "ytdlp_sleep": 5,
+    "cookie_file": "",
+    "dur_tol_abs_ms": 10000,
+    "dur_tol_pct": 0.1,
+    "fuzzy_dur_tol_ms": 15000,
+    "fuzzy_match_thresh": 92,
+    "title_only_floor": 55,
+    "manual_dur_tol": 8
+  },
+  "embed": {
+    "model_dir": "{root}/models",
+    "workers": 0,
+    "emb_dim": 1280,
+    "maest_n": 44
+  },
+  "cluster": {
+    "w_embed": 0.6,
+    "w_genre": 0.3,
+    "w_bpm": 0.1,
+    "umap_n_neighbors": 15,
+    "umap_min_dist": 0.0,
+    "umap_n_components": 20,
+    "umap_metric": "cosine",
+    "umap_random_state": 42,
+    "sweep_cluster_selection": [
+      "leaf"
+    ],
+    "sweep_min_cluster_size": [
+      10,
+      15,
+      20,
+      30,
+      40,
+      50,
+      75,
+      100
+    ],
+    "sweep_min_samples": [
+      2,
+      3,
+      4,
+      5,
+      10,
+      15
+    ],
+    "manual_min_cluster_size": 75,
+    "manual_min_samples": 20,
+    "manual_cluster_selection": "leaf",
+    "score_w": {
+      "noise": 0.3,
+      "target_range": 0.25,
+      "genre_purity": 0.25,
+      "bpm_cohesion": 0.1,
+      "silhouette": 0.1
+    },
+    "target_min": 50,
+    "target_max": 200,
+    "genre_threshold": 0.15,
+    "round2_noise_threshold": 50,
+    "playlist_name_pattern": "Cluster {id} - {genre}"
+  },
+  "tags": {
+    "use_defaults": true,
+    "auto_groups": {
+      "genre": {
+        "enabled": true,
+        "prefix": ""
+      },
+      "mood": {
+        "enabled": true,
+        "prefix": ""
+      },
+      "danceability": {
+        "enabled": true,
+        "prefix": ""
+      },
+      "components": {
+        "enabled": true,
+        "prefix": "Comp - "
+      }
+    },
+    "auto_tags": {
+      "mood": [
+        "Melancholic",
+        "Euphoric",
+        "Uplifting",
+        "Deep",
+        "Hypnotic",
+        "Dark",
+        "Aggressive",
+        "Dramatic"
+      ],
+      "danceability": [
+        "Groovy",
+        "Driving",
+        "Chill",
+        "Peak"
+      ],
+      "components": [
+        "Instrumental",
+        "Arpeggio",
+        "Piano / Keys",
+        "Sub Bass Heavy",
+        "Beat",
+        "Vocal",
+        "Percussion Heavy",
+        "Acid Line",
+        "Synth Lead",
+        "Wobble Bass",
+        "Strings",
+        "Organic",
+        "Brass"
+      ],
+      "genre": [
+        "House",
+        "Techno",
+        "Tech House",
+        "Deep House",
+        "Trance",
+        "Breakbeat",
+        "Electro",
+        "Progressive House",
+        "Drum N Bass",
+        "UK Garage",
+        "Acid",
+        "Progressive Trance",
+        "Jungle",
+        "Breaks",
+        "Bassline"
+      ]
+    },
+    "manual_groups": {
+      "Floor": {
+        "prefix": "Floor - ",
+        "tags": [
+          {
+            "name": "Main Floor",
+            "sync": true
+          },
+          {
+            "name": "Second Floor",
+            "sync": true
+          },
+          {
+            "name": "Lounge",
+            "sync": true
+          },
+          {
+            "name": "Midnight Set",
+            "sync": true
+          },
+          {
+            "name": "Morning Set",
+            "sync": true
+          }
+        ]
+      },
+      "Set Position": {
+        "prefix": "",
+        "tags": [
+          {
+            "name": "Opener",
+            "sync": true
+          },
+          {
+            "name": "Warm Up",
+            "sync": true
+          },
+          {
+            "name": "Build Up",
+            "sync": true
+          },
+          {
+            "name": "Riser",
+            "sync": true
+          },
+          {
+            "name": "Peak Time",
+            "sync": true
+          },
+          {
+            "name": "Bridge - Break",
+            "sync": true
+          },
+          {
+            "name": "Build Down",
+            "sync": true
+          },
+          {
+            "name": "Closer",
+            "sync": true
+          },
+          {
+            "name": "After Hours",
+            "sync": true
+          }
+        ]
+      },
+      "Flag": {
+        "prefix": "Flag - ",
+        "tags": [
+          {
+            "name": "Favorite",
+            "sync": true
+          },
+          {
+            "name": "Sharing",
+            "sync": true
+          },
+          {
+            "name": "Recently Added",
+            "sync": false
+          },
+          {
+            "name": "Needs Review",
+            "sync": false
+          },
+          {
+            "name": "Sampler",
+            "sync": false
+          },
+          {
+            "name": "Remove",
+            "sync": false
+          },
+          {
+            "name": "Redownload",
+            "sync": false
+          }
+        ]
+      }
+    }
+  },
+  "backup": {
+    "retention": 10
+  },
+  "logging": {
+    "level": "INFO"
+  },
+  "pipeline_python": ""
+}

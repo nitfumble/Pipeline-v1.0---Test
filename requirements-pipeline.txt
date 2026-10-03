@@ -1,0 +1,34 @@
+# Pipeline environment (pipe00–03). SEPARATE from the web app's light venv
+# (fastapi/uvicorn/pydantic/numpy). Heavy + slow to install — essentia is the
+# finicky one. Create this env once, then point the orchestrator at its python.
+#
+#   python3 -m venv ~/.local/share/stacks-venvs/pipeline
+#   source ~/.local/share/stacks-venvs/pipeline/bin/activate
+#   pip install -r requirements-pipeline.txt
+#
+# fpcalc (audio fingerprinting in pipe00) is a SYSTEM binary, not pip:
+#   sudo apt install -y libchromaprint-tools
+
+numpy
+pandas
+scikit-learn
+
+# Essentia with the TensorFlow models (MAEST / EffNet) used by pipe01.
+# If this wheel won't resolve on your Python, that's the usual essentia pain —
+# pin a Python it has wheels for (3.10/3.11) or build from source.
+essentia-tensorflow
+
+# clustering (pipe02)
+umap-learn
+hdbscan
+matplotlib
+
+# external services
+spotipy            # pipe00, pipe03  (Spotify)
+pyrekordbox        # pipe03          (Rekordbox master.db)
+yt-dlp             # pipe00          (downloads)
+requests           # pipe00          (slskd REST API)
+
+# audio metadata + matching
+mutagen            # tag read/write
+rapidfuzz          # fuzzy title matching
